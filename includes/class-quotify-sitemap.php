@@ -400,7 +400,11 @@ class Sitemap {
 	}
 
 	/**
-	 * Fetch a URL with timeout/size caps via wp_remote_get (WP HTTP API).
+	 * Fetch a URL via wp_remote_get with a timeout cap.
+	 *
+	 * The body is measured against the size limit after retrieval — WP's
+	 * "stream" + "limit_response_size" combination returns an empty body
+	 * on WordPress 7.1, so streaming is deliberately avoided.
 	 *
 	 * Gzip-magic payloads are gzdecode'd. Returns:
 	 * [ 'ok' => bool, 'body' => ?string, 'error' => ?string ] where error is
@@ -415,24 +419,12 @@ class Sitemap {
 		$response = wp_remote_get(
 			$url,
 			array(
-				'timeout'             => $timeout,
-				'stream'              => true,
-				'limit_response_size' => (int) ( $size_mb * 1024 * 1024 ),
-				'headers'             => array( 'User-Agent' => 'Quotify/' . \QUOTIFY_VERSION . ' (+' . self::UA_BASE . ')' ),
+				'timeout' => $timeout,
+				'headers' => array( 'User-Agent' => 'Quotify/' . \QUOTIFY_VERSION . ' (+' . self::UA_BASE . ')' ),
 			)
 		);
 
 		if ( is_wp_error( $response ) ) {
-			$message = (string) $response->get_error_message();
-
-			if ( false !== strpos( strtolower( $message ), 'limit_response_size' ) ) {
-				return array(
-					'ok'    => false,
-					'body'  => null,
-					'error' => 'too_large',
-				);
-			}
-
 			return array(
 				'ok'    => false,
 				'body'  => null,
@@ -457,6 +449,14 @@ class Sitemap {
 				'ok'    => false,
 				'body'  => null,
 				'error' => 'not_found',
+			);
+		}
+
+		if ( strlen( $body ) > (int) ( $size_mb * 1024 * 1024 ) ) {
+			return array(
+				'ok'    => false,
+				'body'  => null,
+				'error' => 'too_large',
 			);
 		}
 

@@ -70,7 +70,6 @@ $GLOBALS['__fetch_count'] = 0;
 function wp_remote_get( $url, $args = array() ) {
 	$GLOBALS['__fetch_count']++;
 
-	$limit   = isset( $args['limit_response_size'] ) ? (int) $args['limit_response_size'] : 0;
 	$timeout = isset( $args['timeout'] ) ? (int) $args['timeout'] : 8;
 	$ua      = isset( $args['headers']['User-Agent'] ) ? $args['headers']['User-Agent'] : 'Quotify test';
 
@@ -92,10 +91,6 @@ function wp_remote_get( $url, $args = array() ) {
 
 	if ( false === $body ) {
 		return new WP_Error( 'http_request_failed', $err ? $err : 'connection failed' );
-	}
-
-	if ( 0 < $limit && $limit < strlen( $body ) ) {
-		return new WP_Error( 'http_request_failed', 'A valid URL was not provided. limit_response_size exceeded.' );
 	}
 
 	return array( 'response' => array( 'code' => $code ), 'body' => $body );
