@@ -1,0 +1,27 @@
+name: Build & Release
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build quotify.zip
+        run: |
+          mkdir -p release/quotify
+          cp -r quotify.php uninstall.php includes assets release/quotify/
+          cp -r readme.txt release/quotify/ 2>/dev/null || true
+          cd release && zip -r ../quotify.zip quotify
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: quotify.zip
+          tag_name: ${{ github.event.release.tag_name }}

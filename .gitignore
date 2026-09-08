@@ -1,0 +1,12 @@
+# Local planning / lint files (not part of the plugin)
+AGENTS.md
+phpcs.xml.dist
+todo.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Build artifacts
+*.zip
