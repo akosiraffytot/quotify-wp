@@ -271,6 +271,7 @@ class Admin {
 
 				<h2><?php esc_html_e( 'Performance limits', 'qtfy' ); ?></h2>
 				<p><?php esc_html_e( 'Caps on crawling, caching and lock behavior. The defaults are safe; change them only when needed.', 'qtfy' ); ?></p>
+				<p><?php esc_html_e( 'Counting follows every Sitemap: entry in the target robots.txt and totals all listed sitemaps — for example all locale sitemaps of a multilingual site.', 'qtfy' ); ?></p>
 				<table class="form-table" role="presentation">
 					<?php foreach ( self::limit_fields() as $key => $field ) : ?>
 						<?php $value = $limits[ $key ]; ?>

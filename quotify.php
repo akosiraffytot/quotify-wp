@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.0.5
+ * Version:     1.0.6
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.0.5' );
+define( 'QUOTIFY_VERSION', '1.0.6' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -66,7 +66,7 @@ function quotify_shortcode(): string {
 				required
 			>
 			<button type="submit" class="button button-primary quotify-estimate"><?php esc_html_e( 'Estimate', 'qtfy' ); ?></button>
-			<span class="quotify-spinner spinner" style="display:none"></span>
+			<span class="quotify-spinner" style="display:none"></span>
 			<div class="quotify-result" aria-live="polite"></div>
 		</form>
 	</div>
@@ -84,6 +84,7 @@ function quotify_enqueue_frontend_assets(): void {
 		return;
 	}
 
+	wp_enqueue_style( 'quotify-frontend', QUOTIFY_URL . 'assets/frontend.css', array(), QUOTIFY_VERSION );
 	wp_enqueue_script( 'quotify-frontend', QUOTIFY_URL . 'assets/frontend.js', array(), QUOTIFY_VERSION, true );
 	wp_localize_script(
 		'quotify-frontend',
