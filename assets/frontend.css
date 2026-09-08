@@ -15,3 +15,11 @@
 		transform: rotate( 360deg );
 	}
 }
+
+.quotify-status {
+	margin-bottom: 8px;
+}
+
+.quotify-quote-link {
+	font-weight: 600;
+}

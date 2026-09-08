@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.0.6
+ * Version:     1.0.7
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.0.6' );
+define( 'QUOTIFY_VERSION', '1.0.7' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -28,7 +28,9 @@ require_once QUOTIFY_PATH . 'includes/class-quotify-admin.php';
 require_once QUOTIFY_PATH . 'includes/class-quotify-sitemap.php';
 require_once QUOTIFY_PATH . 'includes/class-quotify-updater.php';
 
-Quotify\Updater::init();
+if ( function_exists( 'add_action' ) ) {
+	Quotify\Updater::init();
+}
 
 /**
  * Boot the plugin: admin hooks, shortcode and AJAX endpoint.
@@ -39,19 +41,40 @@ function quotify_boot(): void {
 	Quotify\Admin::init();
 
 	add_shortcode( 'quotify', 'quotify_shortcode' );
+	add_shortcode( 'quotify_count', 'quotify_count_shortcode' );
+	add_shortcode( 'quotify_price', 'quotify_price_shortcode' );
+	add_shortcode( 'quotify_quote', 'quotify_quote_shortcode' );
 	add_action( 'wp_footer', 'quotify_enqueue_frontend_assets' );
 	add_action( 'wp_ajax_quotify_estimate', 'quotify_ajax_estimate' );
 	add_action( 'wp_ajax_nopriv_quotify_estimate', 'quotify_ajax_estimate' );
 }
-add_action( 'plugins_loaded', 'quotify_boot' );
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'plugins_loaded', 'quotify_boot' );
+}
 
 /**
  * [quotify] shortcode: website URL estimate form.
  *
+ * Result fields render inline unless disabled, so the layout stays
+ * fully controllable with the standalone field shortcodes instead.
+ *
+ * @param array|string $atts Shortcode attributes.
  * @return string
  */
-function quotify_shortcode(): string {
+function quotify_shortcode( $atts ): string {
 	$GLOBALS['quotify_shortcode_rendered'] = true;
+
+	$atts = shortcode_atts(
+		array(
+			'button'      => __( 'Estimate', 'qtfy' ),
+			'quote_label' => __( 'Get a Quote', 'qtfy' ),
+			'show_pages'  => 1,
+			'show_price'  => 1,
+			'show_quote'  => 1,
+		),
+		$atts,
+		'quotify'
+	);
 
 	ob_start();
 	?>
@@ -65,13 +88,81 @@ function quotify_shortcode(): string {
 				placeholder="https://example.com"
 				required
 			>
-			<button type="submit" class="button button-primary quotify-estimate"><?php esc_html_e( 'Estimate', 'qtfy' ); ?></button>
+			<button type="submit" class="button button-primary quotify-estimate"><?php echo esc_html( $atts['button'] ); ?></button>
 			<span class="quotify-spinner" style="display:none"></span>
-			<div class="quotify-result" aria-live="polite"></div>
+			<div class="quotify-result" aria-live="polite">
+				<div class="quotify-status"></div>
+				<?php if ( filter_var( $atts['show_pages'], FILTER_VALIDATE_BOOLEAN ) ) : ?>
+					<span class="quotify-field quotify-count" data-quotify-field="count"></span>
+				<?php endif; ?>
+				<?php if ( filter_var( $atts['show_price'], FILTER_VALIDATE_BOOLEAN ) ) : ?>
+					<span class="quotify-field quotify-price" data-quotify-field="price"></span>
+				<?php endif; ?>
+				<?php if ( filter_var( $atts['show_quote'], FILTER_VALIDATE_BOOLEAN ) ) : ?>
+					<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="<?php echo esc_attr( $atts['quote_label'] ); ?>"></span>
+				<?php endif; ?>
+			</div>
 		</form>
 	</div>
 	<?php
 	return ob_get_clean();
+}
+
+/**
+ * Shared renderer for the standalone [quotify_*] field shortcodes.
+ *
+ * @param array|string $atts  Shortcode attributes.
+ * @param string       $field Field slug: count, price or quote.
+ * @return string
+ */
+function quotify_field_shortcode( $atts, string $field ): string {
+	$GLOBALS['quotify_shortcode_rendered'] = true;
+
+	$defaults = array( 'placeholder' => '' );
+	if ( 'quote' === $field ) {
+		$defaults['label'] = __( 'Get a Quote', 'qtfy' );
+	}
+
+	$atts = shortcode_atts( $defaults, $atts, 'quotify_' . $field );
+
+	$classes = 'quotify-field quotify-' . $field;
+	$extra   = '';
+	if ( 'quote' === $field ) {
+		$classes .= ' quotify-quote-link';
+		$extra    = ' data-quotify-quote-label="' . esc_attr( $atts['label'] ) . '"';
+	}
+
+	return '<span class="' . esc_attr( $classes ) . '" data-quotify-field="' . esc_attr( $field ) . '" data-quotify-placeholder="' . esc_attr( $atts['placeholder'] ) . '"' . $extra . '>' . esc_html( $atts['placeholder'] ) . '</span>';
+}
+
+/**
+ * [quotify_count] shortcode: page-count field filled by AJAX results.
+ *
+ * @param array|string $atts Shortcode attributes.
+ * @return string
+ */
+function quotify_count_shortcode( $atts ): string {
+	return quotify_field_shortcode( $atts, 'count' );
+}
+
+/**
+ * [quotify_price] shortcode: price field filled by AJAX results.
+ *
+ * @param array|string $atts Shortcode attributes.
+ * @return string
+ */
+function quotify_price_shortcode( $atts ): string {
+	return quotify_field_shortcode( $atts, 'price' );
+}
+
+/**
+ * [quotify_quote] shortcode: "Get a quote" link filled by AJAX results.
+ *
+ * @param array|string $atts Shortcode attributes (label, placeholder).
+ * @return string
+ */
+function quotify_quote_shortcode( $atts ): string {
+	return quotify_field_shortcode( $atts, 'quote' );
 }
 
 /**
