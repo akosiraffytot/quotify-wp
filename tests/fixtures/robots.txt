@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /admin/
+# A comment-only line
+Sitemap: https://example.com/sitemap.xml
+sitemap: https://example.com/sitemap-index.xml # inline comment
+  Sitemap: https://example.com/sitemap-3.xml

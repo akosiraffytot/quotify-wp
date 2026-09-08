@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<s:urlset xmlns:s="http://www.sitemaps.org/schemas/sitemap/0.9">
+	<s:url><s:loc>https://example.com/one/</s:loc></s:url>
+	<s:url><s:loc>https://example.com/two/</s:loc></s:url>
+</s:urlset>
