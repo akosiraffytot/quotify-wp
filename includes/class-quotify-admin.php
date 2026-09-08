@@ -99,13 +99,20 @@ class Admin {
 			$settings = array();
 		}
 
-		return array_merge(
-			array(
-				'tiers'        => array(),
-				'checkout_url' => '',
-			),
-			$settings
+		$defaults = array(
+			'tiers'        => array(),
+			'checkout_url' => '',
+			'limits'       => Sitemap::default_limits(),
 		);
+
+		$merged = array_merge( $defaults, $settings );
+
+		$merged['limits'] = array_merge(
+			$defaults['limits'],
+			isset( $settings['limits'] ) && is_array( $settings['limits'] ) ? $settings['limits'] : array()
+		);
+
+		return $merged;
 	}
 
 	/**
@@ -191,6 +198,7 @@ class Admin {
 		$settings     = self::get_settings();
 		$tiers        = $settings['tiers'];
 		$checkout_url = $settings['checkout_url'];
+		$limits       = $settings['limits'];
 		$next_index   = empty( $tiers ) ? 1 : count( $tiers );
 		?>
 		<div class="wrap">
@@ -260,6 +268,32 @@ class Admin {
 						placeholder="https://example.com/checkout?pages={page_count}&price={total_price}"
 					>
 				</p>
+
+				<h2><?php esc_html_e( 'Performance limits', 'qtfy' ); ?></h2>
+				<p><?php esc_html_e( 'Caps on crawling, caching and lock behavior. The defaults are safe; change them only when needed.', 'qtfy' ); ?></p>
+				<table class="form-table" role="presentation">
+					<?php foreach ( self::limit_fields() as $key => $field ) : ?>
+						<?php $value = $limits[ $key ]; ?>
+						<tr>
+							<th scope="row">
+								<label for="<?php echo esc_attr( 'quotify-' . $key ); ?>"><?php echo esc_html( $field['label'] ); ?></label>
+							</th>
+							<td>
+								<input
+									type="number"
+									id="<?php echo esc_attr( 'quotify-' . $key ); ?>"
+									class="small-text"
+									min="<?php echo esc_attr( $field['min'] ); ?>"
+									max="<?php echo esc_attr( $field['max'] ); ?>"
+									step="<?php echo esc_attr( $field['step'] ); ?>"
+									name="<?php echo esc_attr( self::OPTION_NAME . '[limits][' . $key . ']' ); ?>"
+									value="<?php echo esc_attr( $value ); ?>"
+								>
+								<p class="description"><?php echo esc_html( $field['desc'] ); ?></p>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</table>
 
 				<?php submit_button(); ?>
 			</form>
@@ -345,8 +379,98 @@ class Admin {
 		$sanitized                 = $previous;
 		$sanitized['tiers']        = $tiers;
 		$sanitized['checkout_url'] = $checkout_url;
+		$sanitized['limits']       = self::sanitize_limits( $input['limits'] ?? array() );
 
 		return $sanitized;
+	}
+
+	/**
+	 * Performance-limit field definitions: label, bounds and help text.
+	 *
+	 * @return array
+	 */
+	private static function limit_fields(): array {
+		return array(
+			'max_pages'            => array(
+				'label' => __( 'Max pages to count', 'qtfy' ),
+				'min'   => 100,
+				'max'   => 100000,
+				'step'  => 1,
+				'desc'  => __( 'Counting stops once this many pages are found (default 5,001).', 'qtfy' ),
+			),
+			'max_response_size_mb' => array(
+				'label' => __( 'Max sitemap response size (MB)', 'qtfy' ),
+				'min'   => 0.5,
+				'max'   => 50,
+				'step'  => 0.5,
+				'desc'  => __( 'Sitemap responses larger than this are rejected (default 2 MB).', 'qtfy' ),
+			),
+			'fetch_timeout'        => array(
+				'label' => __( 'Fetch timeout (seconds)', 'qtfy' ),
+				'min'   => 1,
+				'max'   => 60,
+				'step'  => 1,
+				'desc'  => __( 'Per-request timeout for sitemap fetches (default 8).', 'qtfy' ),
+			),
+			'cache_ttl'            => array(
+				'label' => __( 'Cache lifetime (minutes)', 'qtfy' ),
+				'min'   => 1,
+				'max'   => 1440,
+				'step'  => 1,
+				'desc'  => __( 'How long a page count is cached per site (default 60).', 'qtfy' ),
+			),
+			'lock_ttl'             => array(
+				'label' => __( 'Stampede lock (seconds)', 'qtfy' ),
+				'min'   => 5,
+				'max'   => 300,
+				'step'  => 1,
+				'desc'  => __( 'Prevents concurrent crawls of the same site (default 20).', 'qtfy' ),
+			),
+			'max_depth'            => array(
+				'label' => __( 'Max index depth', 'qtfy' ),
+				'min'   => 1,
+				'max'   => 5,
+				'step'  => 1,
+				'desc'  => __( 'How deep sitemap indexes may nest (default 2).', 'qtfy' ),
+			),
+			'max_subsitemaps'      => array(
+				'label' => __( 'Max sub-sitemaps', 'qtfy' ),
+				'min'   => 10,
+				'max'   => 1000,
+				'step'  => 1,
+				'desc'  => __( 'Cap on sub-sitemaps fetched from one index (default 100).', 'qtfy' ),
+			),
+		);
+	}
+
+	/**
+	 * Sanitize and clamp the submitted limits block.
+	 *
+	 * @param mixed $raw Submitted limits array.
+	 * @return array
+	 */
+	private static function sanitize_limits( $raw ): array {
+		$limits = Sitemap::default_limits();
+
+		if ( ! is_array( $raw ) ) {
+			return $limits;
+		}
+
+		foreach ( $limits as $key => $default ) {
+			if ( ! isset( $raw[ $key ] ) ) {
+				continue;
+			}
+
+			$field = self::limit_fields()[ $key ];
+
+			if ( 'max_response_size_mb' === $key ) {
+				$limits[ $key ] = round( max( (float) $field['min'], min( (float) $field['max'], (float) $raw[ $key ] ) ), 2 );
+			} else {
+				$limits[ $key ] = (int) max( (int) $field['min'], min( (int) $field['max'], (int) $raw[ $key ] ) );
+			}
+		}
+
+		return $limits;
 	}
 
 	/**

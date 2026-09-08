@@ -7,6 +7,10 @@
 
 define( 'ABSPATH', 'C:/tmp/' );
 
+function get_option( $key, $default = false ) {
+	return $default;
+}
+
 require __DIR__ . '/../includes/class-quotify-sitemap.php';
 
 use Quotify\Sitemap;
