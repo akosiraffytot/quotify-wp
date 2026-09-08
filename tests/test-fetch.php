@@ -9,7 +9,7 @@
  */
 
 define( 'ABSPATH', 'C:/tmp/' );
-define( 'QUOTIFY_VERSION', '1.0.3' );
+define( 'QUOTIFY_VERSION', '1.0.5' );
 
 class WP_Error {
 	private $message;
@@ -55,6 +55,20 @@ function get_option( $key, $default = false ) {
 
 function wp_parse_url( $url, $component = -1 ) {
 	return parse_url( $url, $component );
+}
+
+function wp_http_validate_url( $url ) {
+	$parts = parse_url( $url );
+
+	if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
+		return false;
+	}
+
+	if ( ! in_array( $parts['scheme'] ?? '', array( 'http', 'https' ), true ) ) {
+		return false;
+	}
+
+	return $url;
 }
 
 function wp_remote_retrieve_response_code( $response ) {
@@ -122,11 +136,16 @@ function reset_state() {
 	$GLOBALS['__fetch_count'] = 0;
 }
 
-// 1. Site with no sitemap at all.
+// 1. Site with no sitemap at all — and errors are NOT cached.
 reset_state();
 $no_sitemap = Sitemap::count_site( 'https://example.com/' );
 check( 'example.com -> no_sitemap', $no_sitemap['status'], 'no_sitemap' );
 check( 'example.com null count', $no_sitemap['count'], null );
+
+$GLOBALS['__fetch_count'] = 0;
+$second_no_sitemap        = Sitemap::count_site( 'https://example.com/' );
+check( 'example.com still no_sitemap', $second_no_sitemap['status'], 'no_sitemap' );
+check( 'error result re-crawled (not cached)', 0 < $GLOBALS['__fetch_count'], true );
 
 // 2. Live site with a plain urlset.
 reset_state();
@@ -174,5 +193,26 @@ check( 'mdn count positive', 0 < $mdn['count'], true );
 reset_state();
 $candidates = Sitemap::build_candidates( 'https://www.sitemaps.org/' );
 check( 'sitemaps.org candidates non-empty', array() !== $candidates, true );
+
+// 9. SSRF guard on submitted URLs.
+reset_state();
+check( 'guard blocks 127.0.0.1', Sitemap::guard_site_url( 'http://127.0.0.1/' ), false );
+check( 'guard blocks 10.x', Sitemap::guard_site_url( 'http://10.0.0.5/' ), false );
+check( 'guard blocks 192.168.x', Sitemap::guard_site_url( 'http://192.168.1.5/' ), false );
+check( 'guard blocks ::1', Sitemap::guard_site_url( 'http://[::1]/' ), false );
+check( 'guard blocks localhost', Sitemap::guard_site_url( 'http://localhost/' ), false );
+check( 'guard blocks ftp scheme', Sitemap::guard_site_url( 'ftp://example.com/x' ), false );
+check( 'guard allows public ip', Sitemap::guard_site_url( 'http://8.8.8.8/' ), true );
+
+// 10. Rate limiter: 10 hits in a 60s window, 11th blocked.
+reset_state();
+$allowed = 0;
+for ( $i = 0; $i < 10; $i++ ) {
+	if ( Sitemap::throttle( 'tester', 10, 60 ) ) {
+		$allowed++;
+	}
+}
+check( 'throttle allows 10', $allowed, 10 );
+check( 'throttle blocks 11th', Sitemap::throttle( 'tester', 10, 60 ), false );
 
 echo "ALL FETCH TESTS PASSED\n";

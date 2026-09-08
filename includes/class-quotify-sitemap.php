@@ -23,6 +23,7 @@ class Sitemap {
 	const SITEMAP_NS  = 'http://www.sitemaps.org/schemas/sitemap/0.9';
 	const OPTION_NAME = 'quotify_settings';
 	const UA_BASE     = 'https://github.com/akosiraffytot/quotify-wp';
+	const RL_PREFIX   = 'quotify_rl_';
 
 	/**
 	 * Default performance limits. Editable in the admin "Performance
@@ -56,6 +57,84 @@ class Sitemap {
 		}
 
 		return array_merge( $defaults, $option['limits'] );
+	}
+
+	/**
+	 * Whether a submitted website URL is safe to crawl.
+	 *
+	 * HTTP(S) only, host must resolve, and the (resolved) address must not
+	 * be loopback, private or reserved — a basic SSRF guard.
+	 *
+	 * @param string $url Website URL.
+	 * @return bool
+	 */
+	public static function guard_site_url( string $url ): bool {
+		$url   = trim( $url );
+		$parts = '' !== $url ? wp_parse_url( $url ) : false;
+
+		if ( ! is_array( $parts ) || empty( $parts['host'] ) ) {
+			return false;
+		}
+
+		$scheme = isset( $parts['scheme'] ) ? strtolower( $parts['scheme'] ) : '';
+
+		if ( 'https' !== $scheme && 'http' !== $scheme ) {
+			return false;
+		}
+
+		if ( false === wp_http_validate_url( $url ) ) {
+			return false;
+		}
+
+		$host = strtolower( trim( $parts['host'] ) );
+
+		if ( false !== filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			return ! self::ip_is_private( $host );
+		}
+
+		$resolved = gethostbyname( $host );
+
+		if ( $resolved === $host || false === filter_var( $resolved, FILTER_VALIDATE_IP ) ) {
+			return false;
+		}
+
+		return ! self::ip_is_private( $resolved );
+	}
+
+	/**
+	 * Sliding-window per-bucket rate limiter.
+	 *
+	 * @param string $bucket Bucket discriminator (e.g. client IP).
+	 * @param int    $max    Hits allowed per window.
+	 * @param int    $window Window size in seconds.
+	 * @return bool True when the hit is allowed, false when over the limit.
+	 */
+	public static function throttle( string $bucket, int $max = 10, int $window = 60 ): bool {
+		$key  = self::RL_PREFIX . md5( $bucket );
+		$now  = time();
+		$hits = get_transient( $key );
+
+		if ( ! is_array( $hits ) ) {
+			$hits = array();
+		}
+
+		$hits = array_values(
+			array_filter(
+				$hits,
+				static function ( $t ) use ( $now, $window ): bool {
+					return ( $now - $window ) < (int) $t;
+				}
+			)
+		);
+
+		if ( $max <= count( $hits ) ) {
+			return false;
+		}
+
+		$hits[] = $now;
+		set_transient( $key, $hits, $window );
+
+		return true;
 	}
 
 	/**
@@ -127,14 +206,12 @@ class Sitemap {
 		delete_transient( $lock_key );
 
 		if ( $too_large ) {
-			$result = array(
+			// Not cached: absent/error outcomes should reflect fixes quickly.
+			return array(
 				'status' => 'too_large',
 				'count'  => null,
 				'capped' => false,
 			);
-			set_transient( $cache_key, $result, ( 60 * (int) $limits['cache_ttl'] ) );
-
-			return $result;
 		}
 
 		if ( 0 < $total || $capped ) {
@@ -148,14 +225,12 @@ class Sitemap {
 			return $result;
 		}
 
-		$result = array(
+		// Not cached: only successful counts are kept for the cache lifetime.
+		return array(
 			'status' => $had_fetch_error ? 'fetch_error' : 'no_sitemap',
 			'count'  => null,
 			'capped' => false,
 		);
-		set_transient( $cache_key, $result, ( 60 * (int) $limits['cache_ttl'] ) );
-
-		return $result;
 	}
 
 	/**
@@ -538,6 +613,37 @@ class Sitemap {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * Whether an IP address is loopback, private or reserved.
+	 *
+	 * @param string $ip IP address.
+	 * @return bool
+	 */
+	private static function ip_is_private( string $ip ): bool {
+		$ipv4 = filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 );
+		$ipv6 = false === $ipv4 ? filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) : false;
+
+		if ( false === $ipv4 && false === $ipv6 ) {
+			return true;
+		}
+
+		if (
+			false !== $ipv4
+			&& false === filter_var( $ipv4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE )
+		) {
+			return true;
+		}
+
+		if (
+			false !== $ipv6
+			&& false === filter_var( $ipv6, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 | FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE )
+		) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
