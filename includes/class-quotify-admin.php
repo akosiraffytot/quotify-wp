@@ -109,6 +109,76 @@ class Admin {
 	}
 
 	/**
+	 * Match a page count against the sorted pricing tiers.
+	 *
+	 * Tiers are expected to be min-sorted as produced by normalize_tiers()
+	 * during settings sanitization. Returns the price of the first tier
+	 * where count >= min and (max is empty or count <= max), or null when
+	 * no tier matches.
+	 *
+	 * @param int   $count Number of pages.
+	 * @param array $tiers Normalized tier list.
+	 * @return float|null
+	 */
+	public static function get_price( int $count, array $tiers ): ?float {
+		foreach ( $tiers as $tier ) {
+			if ( $count >= $tier['min'] && ( '' === $tier['max'] || $count <= $tier['max'] ) ) {
+				return (float) $tier['price'];
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Human readable price label, e.g. "$235".
+	 *
+	 * Null yields a contact-us fallback string.
+	 *
+	 * @param float|null $price Matched price or null.
+	 * @return string
+	 */
+	public static function price_label( ?float $price ): string {
+		if ( null === $price ) {
+			return __( 'Contact us for a custom quote.', 'qtfy' );
+		}
+
+		return '$' . number_format_i18n( $price, 0 );
+	}
+
+	/**
+	 * Build a checkout URL by substituting tokens into the template.
+	 *
+	 * {page_count} becomes the integer page count and {total_price} the
+	 * price with trailing zeros trimmed (e.g. 120, 160.5, 235.75). The
+	 * template is returned verbatim when it contains no tokens.
+	 *
+	 * @param int    $count    Page count.
+	 * @param float  $price    Price.
+	 * @param string $template Checkout URL template.
+	 * @return string
+	 */
+	public static function build_checkout_url( int $count, float $price, string $template ): string {
+		return str_replace(
+			array( self::TOKEN_PAGES, self::TOKEN_PRICE ),
+			array( (string) $count, self::format_price_for_url( $price ) ),
+			$template
+		);
+	}
+
+	/**
+	 * Render a price for use in a URL query: 2dp with trailing zeros trimmed.
+	 *
+	 * @param float $price Price.
+	 * @return string
+	 */
+	private static function format_price_for_url( float $price ): string {
+		$formatted = number_format( $price, 2, '.', '' );
+
+		return rtrim( rtrim( $formatted, '0' ), '.' );
+	}
+
+	/**
 	 * Render the settings page.
 	 *
 	 * @return void
@@ -280,6 +350,16 @@ class Admin {
 	}
 
 	/**
+	 * Normalize a price: non-negative, 2dp float.
+	 *
+	 * @param float $price Raw price.
+	 * @return float
+	 */
+	private static function normalize_price( float $price ): float {
+		return round( max( 0.0, $price ), 2 );
+	}
+
+	/**
 	 * Normalize a list of submitted tiers: absint bounds, 2dp prices, sorted
 	 * by min, blank rows dropped.
 	 *
@@ -309,7 +389,7 @@ class Admin {
 			$normalized[] = array(
 				'min'   => '' !== $min ? absint( $min ) : 0,
 				'max'   => '' !== $max ? absint( $max ) : '',
-				'price' => '' !== $price ? round( max( 0.0, (float) $price ), 2 ) : 0.0,
+				'price' => '' !== $price ? self::normalize_price( (float) $price ) : 0.0,
 			);
 		}
 
