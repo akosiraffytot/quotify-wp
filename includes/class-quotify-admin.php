@@ -22,6 +22,7 @@ class Admin {
 	const CAPABILITY  = 'manage_options';
 	const TOKEN_PAGES = '{page_count}';
 	const TOKEN_PRICE = '{total_price}';
+	const TOKEN_SITE  = '{site}';
 
 	/**
 	 * Hook the admin into WordPress.
@@ -119,22 +120,34 @@ class Admin {
 	 * Match a page count against the sorted pricing tiers.
 	 *
 	 * Tiers are expected to be min-sorted as produced by normalize_tiers()
-	 * during settings sanitization. Returns the price of the first tier
-	 * where count >= min and (max is empty or count <= max), or null when
-	 * no tier matches.
+	 * during settings sanitization. Returns the first tier where count >=
+	 * min and (max is empty or count <= max), or null when no tier matches.
+	 *
+	 * @param int   $count Number of pages.
+	 * @param array $tiers Normalized tier list.
+	 * @return array|null
+	 */
+	public static function match_tier( int $count, array $tiers ): ?array {
+		foreach ( $tiers as $tier ) {
+			if ( $count >= $tier['min'] && ( '' === $tier['max'] || $count <= $tier['max'] ) ) {
+				return $tier;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Match a page count against the sorted pricing tiers and return the price.
 	 *
 	 * @param int   $count Number of pages.
 	 * @param array $tiers Normalized tier list.
 	 * @return float|null
 	 */
 	public static function get_price( int $count, array $tiers ): ?float {
-		foreach ( $tiers as $tier ) {
-			if ( $count >= $tier['min'] && ( '' === $tier['max'] || $count <= $tier['max'] ) ) {
-				return (float) $tier['price'];
-			}
-		}
+		$tier = self::match_tier( $count, $tiers );
 
-		return null;
+		return $tier ? (float) $tier['price'] : null;
 	}
 
 	/**
@@ -156,19 +169,21 @@ class Admin {
 	/**
 	 * Build a checkout URL by substituting tokens into the template.
 	 *
-	 * {page_count} becomes the integer page count and {total_price} the
-	 * price with trailing zeros trimmed (e.g. 120, 160.5, 235.75). The
-	 * template is returned verbatim when it contains no tokens.
+	 * {page_count} becomes the integer page count, {total_price} the price
+	 * with trailing zeros trimmed (e.g. 120, 160.5, 235.75), and {site} the
+	 * normalized website root. The template is returned verbatim when it
+	 * contains no tokens.
 	 *
 	 * @param int    $count    Page count.
 	 * @param float  $price    Price.
 	 * @param string $template Checkout URL template.
+	 * @param string $site     Normalized website root (scheme://host[:port]).
 	 * @return string
 	 */
-	public static function build_checkout_url( int $count, float $price, string $template ): string {
+	public static function build_checkout_url( int $count, float $price, string $template, string $site ): string {
 		return str_replace(
-			array( self::TOKEN_PAGES, self::TOKEN_PRICE ),
-			array( (string) $count, self::format_price_for_url( $price ) ),
+			array( self::TOKEN_PAGES, self::TOKEN_PRICE, self::TOKEN_SITE ),
+			array( (string) $count, self::format_price_for_url( $price ), $site ),
 			$template
 		);
 	}
@@ -227,6 +242,7 @@ class Admin {
 							<th><?php esc_html_e( 'Min pages', 'qtfy' ); ?></th>
 							<th><?php esc_html_e( 'Max pages (blank = open-ended)', 'qtfy' ); ?></th>
 							<th><?php esc_html_e( 'Price ($)', 'qtfy' ); ?></th>
+							<th><?php esc_html_e( 'Checkout URL (optional)', 'qtfy' ); ?></th>
 							<th>&nbsp;</th>
 						</tr>
 					</thead>
@@ -239,6 +255,7 @@ class Admin {
 									'min'   => '',
 									'max'   => '',
 									'price' => '',
+									'url'   => '',
 								)
 							);
 							?>
@@ -258,6 +275,7 @@ class Admin {
 				<ul>
 					<li><code>{page_count}</code> &mdash; <?php esc_html_e( 'the counted number of pages', 'qtfy' ); ?></li>
 					<li><code>{total_price}</code> &mdash; <?php esc_html_e( 'the full price', 'qtfy' ); ?></li>
+					<li><code>{site}</code> &mdash; <?php esc_html_e( 'the website URL being quoted', 'qtfy' ); ?></li>
 				</ul>
 				<p>
 					<input
@@ -341,6 +359,15 @@ class Admin {
 				>
 			</td>
 			<td>
+				<input
+					type="text"
+					class="regular-text code"
+					name="<?php echo esc_attr( sprintf( '%s[tiers][%d][url]', self::OPTION_NAME, $index ) ); ?>"
+					value="<?php echo esc_attr( $tier['url'] ?? '' ); ?>"
+					placeholder="https://…/?pages={page_count}&t={total_price}"
+				>
+			</td>
+			<td>
 				<button type="button" class="button-link-delete quotify-remove-tier"><?php esc_html_e( 'Remove', 'qtfy' ); ?></button>
 			</td>
 		</tr>
@@ -375,7 +402,7 @@ class Admin {
 			return $previous;
 		}
 
-		$checkout_url = isset( $input['checkout_url'] ) ? esc_url_raw( $input['checkout_url'] ) : '';
+		$checkout_url = isset( $input['checkout_url'] ) ? sanitize_text_field( $input['checkout_url'] ) : '';
 
 		$sanitized                 = $previous;
 		$sanitized['tiers']        = $tiers;
@@ -506,8 +533,9 @@ class Admin {
 			$min   = isset( $raw['min'] ) ? trim( (string) $raw['min'] ) : '';
 			$max   = isset( $raw['max'] ) ? trim( (string) $raw['max'] ) : '';
 			$price = isset( $raw['price'] ) ? trim( (string) $raw['price'] ) : '';
+			$url   = isset( $raw['url'] ) ? trim( (string) $raw['url'] ) : '';
 
-			if ( '' === $min && '' === $max && '' === $price ) {
+			if ( '' === $min && '' === $max && '' === $price && '' === $url ) {
 				continue;
 			}
 
@@ -515,6 +543,7 @@ class Admin {
 				'min'   => '' !== $min ? absint( $min ) : 0,
 				'max'   => '' !== $max ? absint( $max ) : '',
 				'price' => '' !== $price ? self::normalize_price( (float) $price ) : 0.0,
+				'url'   => '' !== $url ? sanitize_text_field( $url ) : '',
 			);
 		}
 

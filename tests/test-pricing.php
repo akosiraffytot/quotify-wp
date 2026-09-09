@@ -77,23 +77,49 @@ check( 'label open tier', Admin::price_label( 500.0 ), '$500' );
 // Checkout URL building.
 check(
 	'url tokens',
-	Admin::build_checkout_url( 50, 120.0, 'https://x.com/c?p={page_count}&t={total_price}' ),
+	Admin::build_checkout_url( 50, 120.0, 'https://x.com/c?p={page_count}&t={total_price}', 'https://bikes.example' ),
 	'https://x.com/c?p=50&t=120'
 );
 check(
 	'url trim half',
-	Admin::build_checkout_url( 175, 160.5, 'https://x.com/c?t={total_price}' ),
+	Admin::build_checkout_url( 175, 160.5, 'https://x.com/c?t={total_price}', 'https://bikes.example' ),
 	'https://x.com/c?t=160.5'
 );
 check(
 	'url cents',
-	Admin::build_checkout_url( 305, 235.75, 'https://x.com/c?t={total_price}' ),
+	Admin::build_checkout_url( 305, 235.75, 'https://x.com/c?t={total_price}', 'https://bikes.example' ),
 	'https://x.com/c?t=235.75'
 );
 check(
 	'url no tokens',
-	Admin::build_checkout_url( 10, 120.0, 'https://x.com/c' ),
+	Admin::build_checkout_url( 10, 120.0, 'https://x.com/c', 'https://bikes.example' ),
 	'https://x.com/c'
+);
+check(
+	'url site token',
+	Admin::build_checkout_url( 50, 120.0, 'https://checkout.com/?site={site}&p={page_count}&t={total_price}', 'https://bikes.example' ),
+	'https://checkout.com/?site=https://bikes.example&p=50&t=120'
+);
+
+// match_tier returns the full tier (including url), get_price stays a float.
+$tiered = array(
+	array( 'min' => 0,   'max' => '50',  'price' => 120.0, 'url' => 'https://tier.com/?p={page_count}&t={total_price}' ),
+	array( 'min' => 51,  'max' => '',    'price' => 160.0, 'url' => '' ),
+);
+check( 'match_tier returns tier with url', Admin::match_tier( 10, $tiered ), $tiered[0] );
+check( 'match_tier blank url returns tier', Admin::match_tier( 60, $tiered ), $tiered[1] );
+check( 'match_tier no match null', Admin::match_tier( 0, array() ), null );
+check( 'get_price delegates', Admin::get_price( 10, $tiered ), 120.0 );
+check( 'get_price null when no match', Admin::get_price( 0, array() ), null );
+check(
+	'tier url token substitution',
+	Admin::build_checkout_url( 10, 120.0, $tiered[0]['url'], 'https://bikes.example' ),
+	'https://tier.com/?p=10&t=120'
+);
+check(
+	'tier url site token',
+	Admin::build_checkout_url( 10, 120.0, 'https://tier.com/?site={site}', 'https://bikes.example' ),
+	'https://tier.com/?site=https://bikes.example'
 );
 
 echo "ALL PRICING TESTS PASSED\n";

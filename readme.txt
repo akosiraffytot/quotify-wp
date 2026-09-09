@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.8
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,7 +16,7 @@ Quotify gives your visitors a live tool: they type a website URL, hit the button
 
 Behind the scenes Quotify discovers the site's XML sitemap (robots.txt `Sitemap:` entries first, then common paths), streams the count with a performance-safe cap, matches it to your pricing tiers, and links to your checkout.
 
-* **Configurable pricing** — Tools > Quotify: add as many tiers as you want (last tier open-ended), plus a checkout URL template with `{page_count}` and `{total_price}` tokens ($ fixed, formatted for your locale).
+* **Configurable pricing** — Tools > Quotify: add as many tiers as you want (last tier open-ended), each with its own optional checkout URL, plus a global checkout URL template with `{page_count}`, `{total_price}` and `{site}` tokens ($ fixed, formatted for your locale).
 * **Performance limits** — fetch timeout, response size cap, depth and sub-sitemap caps, per-site 1-hour cache and a 5,001-page early stop.
 * **Place results anywhere** — choose which results show inline, or drop the count, price and "Get a quote" link into separate spots on the page with dedicated shortcodes.
 * **Safe by default** — SSRF guard blocks private/loopback addresses, per-IP request throttling, nonce-protected requests.
@@ -69,6 +69,10 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.1.0 =
+* Per-tier checkout URLs: give any pricing tier its own optional checkout link, falling back to the global template when blank.
+* New `{site}` token in checkout URL templates — replaced with the website URL being quoted.
 
 = 1.0.8 =
 * Auto-clean expired transients from the options table on every count, keeping the database lean without deactivation or cron reliance.
