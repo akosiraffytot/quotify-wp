@@ -20,6 +20,12 @@
 	margin-bottom: 8px;
 }
 
+.quotify-profile-hint {
+	margin: 0 0 8px;
+	color: #666;
+	font-style: italic;
+}
+
 .quotify-quote-link {
 	font-weight: 600;
 }

@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,7 +34,7 @@ Customize the form (all attributes optional):
 * `button` — text of the submit button (default: Estimate).
 * `quote_label` — text of the checkout link (default: Get a Quote).
 * `show_pages` / `show_price` / `show_quote` — set to `0` to hide that result inline. Error messages always show.
-* `mode` — `input` (default) lets visitors type any website; `user` prefills the visitor's own WordPress profile website URL and makes it read-only (falls back to a normal input when logged out or no profile URL is set).
+* `mode` — `all` (default) lets visitors type any website; `user` prefills the visitor's own WordPress profile website URL in a disabled field, and shows a prompt to add a profile URL when none is set. The Estimate button is disabled while the URL field is empty in both modes.
 
 Place any result separately anywhere on the page — for example a "You have X pages" panel:
 
@@ -70,6 +70,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.2.1 =
+* `[quotify]` mode value `input` is now `all` (default editable field for anyone); `user` keeps the field disabled and prefilled from the visitor's profile URL, or shows a prompt to add one when none is set. The Estimate button is disabled while the URL field is empty in both modes.
 
 = 1.2.0 =
 * New `mode` attribute for `[quotify]`: `user` prefills the visitor's WordPress profile website and makes it read-only (falls back to a normal input when logged out or no profile URL is set).

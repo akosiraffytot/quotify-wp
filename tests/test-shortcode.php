@@ -121,37 +121,43 @@ unset( $GLOBALS['quotify_shortcode_rendered'] );
 quotify_price_shortcode( array() );
 check( 'field sets enqueue flag', isset( $GLOBALS['quotify_shortcode_rendered'] ) && $GLOBALS['quotify_shortcode_rendered'], true );
 
-// 8. mode attribute: default/input render editable field.
+// 8. mode attribute: default/input ("all") render an editable field.
 $GLOBALS['__test_logged_in'] = false;
-$html = quotify_shortcode( array( 'mode' => 'input' ) );
-check( 'input mode no readonly', strpos( $html, 'readonly' ), false );
-check( 'input mode no value attr', strpos( $html, 'value=' ), false );
+$GLOBALS['__test_user_url'] = '';
+$html = quotify_shortcode( array( 'mode' => 'all' ) );
+check( 'all mode not disabled', strpos( $html, 'disabled' ), false );
+check( 'all mode no value attr', strpos( $html, 'value=' ), false );
+check( 'all mode no profile hint', strpos( $html, 'quotify-profile-hint' ), false );
 $html = quotify_shortcode( array( 'mode' => 'garbage' ) );
-check( 'unknown mode falls back to input', strpos( $html, 'readonly' ), false );
+check( 'unknown mode falls back to all', strpos( $html, 'disabled' ), false );
 
-// 9. user mode, logged out -> editable fallback (silent).
+// 9. user mode, logged out -> disabled empty input + profile hint.
 $GLOBALS['__test_logged_in'] = false;
 $GLOBALS['__test_user_url'] = 'https://prof.example';
 $html = quotify_shortcode( array( 'mode' => 'user' ) );
-check( 'user mode logged out no readonly', strpos( $html, 'readonly' ), false );
-check( 'user mode logged out no value', strpos( $html, 'https://prof.example' ), false );
+check( 'user mode logged out disabled', strpos( $html, 'disabled' ) !== false, true );
+check( 'user mode logged out not prefilled', strpos( $html, 'https://prof.example' ), false );
+check( 'user mode logged out hint shown', strpos( $html, 'quotify-profile-hint' ) !== false, true );
 
-// 10. user mode, logged in with profile URL -> readonly prefilled.
+// 10. user mode, logged in with profile URL -> disabled prefilled, no hint.
 $GLOBALS['__test_logged_in'] = true;
 $GLOBALS['__test_user_url'] = 'https://prof.example';
 $html = quotify_shortcode( array( 'mode' => 'user' ) );
-check( 'user mode readonly', strpos( $html, 'readonly' ) !== false, true );
+check( 'user mode disabled', strpos( $html, 'disabled' ) !== false, true );
 check( 'user mode prefilled value', strpos( $html, 'value="https://prof.example"' ) !== false, true );
+check( 'user mode no hint when urls', strpos( $html, 'quotify-profile-hint' ), false );
 
-// 11. user mode, logged in but empty / malformed profile URL -> editable fallback.
+// 11. user mode, logged in but empty / malformed profile URL -> disabled + hint.
 $GLOBALS['__test_logged_in'] = true;
 $GLOBALS['__test_user_url'] = '';
 $html = quotify_shortcode( array( 'mode' => 'user' ) );
-check( 'user mode empty url no readonly', strpos( $html, 'readonly' ), false );
+check( 'user mode empty url disabled', strpos( $html, 'disabled' ) !== false, true );
+check( 'user mode empty url hint shown', strpos( $html, 'quotify-profile-hint' ) !== false, true );
 $GLOBALS['__test_user_url'] = 'javascript:alert(1)';
 $html = quotify_shortcode( array( 'mode' => 'user' ) );
-check( 'user mode bad scheme no readonly', strpos( $html, 'readonly' ), false );
+check( 'user mode bad scheme disabled', strpos( $html, 'disabled' ) !== false, true );
 check( 'user mode bad scheme not prefilled', strpos( $html, 'javascript:alert' ), false );
+check( 'user mode bad scheme hint shown', strpos( $html, 'quotify-profile-hint' ) !== false, true );
 
 $GLOBALS['__test_logged_in'] = false;
 $GLOBALS['__test_user_url'] = '';

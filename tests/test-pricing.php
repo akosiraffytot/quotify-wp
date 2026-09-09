@@ -7,7 +7,7 @@
 
 define( 'ABSPATH', 'C:/tmp/' );
 define( 'QUOTIFY_URL', 'http://unit.test/wp-content/plugins/quotify/' );
-define( 'QUOTIFY_VERSION', '1.2.0' );
+define( 'QUOTIFY_VERSION', '1.2.1' );
 
 function number_format_i18n( $number, $decimals = 0 ) {
 	return number_format( $number, $decimals );

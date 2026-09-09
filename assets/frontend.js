@@ -95,9 +95,13 @@
 			status.appendChild( document.createTextNode( text ) );
 		}
 
+		function syncButtonState() {
+			button.disabled = ! ( urlInput.value && urlInput.value.trim() );
+		}
+
 		function finish( error ) {
 			spinner.style.display = 'none';
-			button.disabled = false;
+			syncButtonState();
 			if ( error ) {
 				showMessage( error );
 			}
@@ -140,6 +144,9 @@
 					finish( config.error );
 				} );
 		}
+
+		syncButtonState();
+		urlInput.addEventListener( 'input', syncButtonState );
 
 		form.addEventListener( 'submit', function ( event ) {
 			event.preventDefault();

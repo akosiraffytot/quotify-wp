@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.2.0
+ * Version:     1.2.1
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.2.0' );
+define( 'QUOTIFY_VERSION', '1.2.1' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -71,16 +71,16 @@ function quotify_shortcode( $atts ): string {
 			'show_pages'  => 1,
 			'show_price'  => 1,
 			'show_quote'  => 1,
-			'mode'        => 'input',
+			'mode'        => 'all',
 		),
 		$atts,
 		'quotify'
 	);
 
-	$mode = 'user' === $atts['mode'] ? 'user' : 'input';
+	$mode = 'user' === $atts['mode'] ? 'user' : 'all';
 
+	$user_url = '';
 	if ( 'user' === $mode ) {
-		$user_url = '';
 		if ( is_user_logged_in() ) {
 			$user_url = (string) wp_get_current_user()->user_url;
 			$scheme   = wp_parse_url( $user_url, PHP_URL_SCHEME );
@@ -96,13 +96,16 @@ function quotify_shortcode( $atts ): string {
 	<div class="quotify-tool">
 		<form class="quotify-form" novalidate>
 			<label class="screen-reader-text" for="quotify-url"><?php esc_html_e( 'Website URL', 'qtfy' ); ?></label>
-			<?php if ( 'user' === $mode && '' !== $user_url ) : ?>
+			<?php if ( 'user' === $mode ) : ?>
+				<?php if ( '' === $user_url ) : ?>
+					<p class="quotify-profile-hint"><?php esc_html_e( 'Add a website URL to your profile to use it here.', 'qtfy' ); ?></p>
+				<?php endif; ?>
 				<input
 					type="url"
 					id="quotify-url"
 					class="regular-text"
 					value="<?php echo esc_attr( $user_url ); ?>"
-					readonly
+					disabled
 				>
 			<?php else : ?>
 				<input
@@ -110,7 +113,6 @@ function quotify_shortcode( $atts ): string {
 					id="quotify-url"
 					class="regular-text"
 					placeholder="https://example.com"
-					required
 				>
 			<?php endif; ?>
 			<button type="submit" class="button button-primary quotify-estimate"><?php echo esc_html( $atts['button'] ); ?></button>
