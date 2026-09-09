@@ -9,7 +9,7 @@
  */
 
 define( 'ABSPATH', 'C:/tmp/' );
-define( 'QUOTIFY_VERSION', '1.0.7' );
+define( 'QUOTIFY_VERSION', '1.0.8' );
 
 class WP_Error {
 	private $message;
@@ -47,6 +47,16 @@ function set_transient( $key, $value, $ttl = 0 ) {
 
 function delete_transient( $key ) {
 	unset( $GLOBALS['__store'][ $key ], $GLOBALS['__store'][ $key . '_exp' ] );
+}
+
+function delete_expired_transients( $force_db = false ) {
+	$now = time();
+
+	foreach ( $GLOBALS['__store'] as $key => $value ) {
+		if ( isset( $GLOBALS['__store'][ $key . '_exp' ] ) && $GLOBALS['__store'][ $key . '_exp' ] < $now ) {
+			delete_transient( $key );
+		}
+	}
 }
 
 function get_option( $key, $default = false ) {
@@ -214,5 +224,13 @@ for ( $i = 0; $i < 10; $i++ ) {
 }
 check( 'throttle allows 10', $allowed, 10 );
 check( 'throttle blocks 11th', Sitemap::throttle( 'tester', 10, 60 ), false );
+
+// 11. Expired transients are swept, valid (unexpired) caches survive.
+reset_state();
+set_transient( 'quotify_count_expired', array( 'status' => 'ok', 'count' => 1 ), -1 );
+set_transient( 'quotify_count_fresh', array( 'status' => 'ok', 'count' => 2 ), 3600 );
+delete_expired_transients( true );
+check( 'expired transient removed', get_transient( 'quotify_count_expired' ), false );
+check( 'unexpired transient kept', is_array( get_transient( 'quotify_count_fresh' ) ), true );
 
 echo "ALL FETCH TESTS PASSED\n";

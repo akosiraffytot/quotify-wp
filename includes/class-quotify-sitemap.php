@@ -151,6 +151,8 @@ class Sitemap {
 	 * @return array
 	 */
 	public static function count_site( string $url ): array {
+		delete_expired_transients( true );
+
 		$root   = self::normalize_root( $url );
 		$limits = self::get_limits();
 

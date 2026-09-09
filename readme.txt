@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -69,6 +69,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.0.8 =
+* Auto-clean expired transients from the options table on every count, keeping the database lean without deactivation or cron reliance.
 
 = 1.0.7 =
 * New `[quotify_count]`, `[quotify_price]` and `[quotify_quote]` shortcodes to place results anywhere on the page; filled live by the estimate.
