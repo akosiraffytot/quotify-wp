@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.2.1
+ * Version:     1.2.2
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.2.1' );
+define( 'QUOTIFY_VERSION', '1.2.2' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -277,6 +277,8 @@ function quotify_ajax_estimate(): void {
 	$price    = $tier ? (float) $tier['price'] : null;
 	$template = ( $tier && ! empty( $tier['url'] ) ) ? $tier['url'] : $settings['checkout_url'];
 	$site     = home_url();
+	$checkout = null !== $price ? Quotify\Admin::build_checkout_url( $result['count'], $price, $template, $site ) : '';
+	$checkout = 0 === strpos( (string) $checkout, 'http://' ) || 0 === strpos( (string) $checkout, 'https://' ) ? $checkout : '';
 
 	wp_send_json_success(
 		array(
@@ -285,7 +287,7 @@ function quotify_ajax_estimate(): void {
 			'capped'          => $result['capped'],
 			'price'           => $price,
 			'formatted_price' => Quotify\Admin::price_label( $price ),
-			'checkout_url'    => null !== $price ? esc_url( Quotify\Admin::build_checkout_url( $result['count'], $price, $template, $site ) ) : '',
+			'checkout_url'    => $checkout,
 		)
 	);
 }

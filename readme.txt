@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.1
+Stable tag: 1.2.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -70,6 +70,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.2.2 =
+* Fix checkout URL query strings: the `&` in checkout URL templates is no longer HTML-encoded, so links like `?page_count=50&price=120` work instead of being broken.
 
 = 1.2.1 =
 * `[quotify]` mode value `input` is now `all` (default editable field for anyone); `user` keeps the field disabled and prefilled from the visitor's profile URL, or shows a prompt to add one when none is set. The Estimate button is disabled while the URL field is empty in both modes.
