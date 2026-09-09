@@ -36,6 +36,21 @@ function __( $text, $domain = 'default' ) {
 	return $text;
 }
 
+function wp_parse_url( $url, $component = -1 ) {
+	return parse_url( $url, $component );
+}
+
+$GLOBALS['__test_logged_in'] = false;
+$GLOBALS['__test_user_url'] = '';
+
+function is_user_logged_in() {
+	return $GLOBALS['__test_logged_in'];
+}
+
+function wp_get_current_user() {
+	return (object) array( 'user_url' => $GLOBALS['__test_user_url'] );
+}
+
 require __DIR__ . '/../quotify.php';
 
 function check( $label, $actual, $expected ) {
@@ -105,5 +120,40 @@ check( 'placeholder escaped in attr + body', strpos( $html, '<b>' ), false );
 unset( $GLOBALS['quotify_shortcode_rendered'] );
 quotify_price_shortcode( array() );
 check( 'field sets enqueue flag', isset( $GLOBALS['quotify_shortcode_rendered'] ) && $GLOBALS['quotify_shortcode_rendered'], true );
+
+// 8. mode attribute: default/input render editable field.
+$GLOBALS['__test_logged_in'] = false;
+$html = quotify_shortcode( array( 'mode' => 'input' ) );
+check( 'input mode no readonly', strpos( $html, 'readonly' ), false );
+check( 'input mode no value attr', strpos( $html, 'value=' ), false );
+$html = quotify_shortcode( array( 'mode' => 'garbage' ) );
+check( 'unknown mode falls back to input', strpos( $html, 'readonly' ), false );
+
+// 9. user mode, logged out -> editable fallback (silent).
+$GLOBALS['__test_logged_in'] = false;
+$GLOBALS['__test_user_url'] = 'https://prof.example';
+$html = quotify_shortcode( array( 'mode' => 'user' ) );
+check( 'user mode logged out no readonly', strpos( $html, 'readonly' ), false );
+check( 'user mode logged out no value', strpos( $html, 'https://prof.example' ), false );
+
+// 10. user mode, logged in with profile URL -> readonly prefilled.
+$GLOBALS['__test_logged_in'] = true;
+$GLOBALS['__test_user_url'] = 'https://prof.example';
+$html = quotify_shortcode( array( 'mode' => 'user' ) );
+check( 'user mode readonly', strpos( $html, 'readonly' ) !== false, true );
+check( 'user mode prefilled value', strpos( $html, 'value="https://prof.example"' ) !== false, true );
+
+// 11. user mode, logged in but empty / malformed profile URL -> editable fallback.
+$GLOBALS['__test_logged_in'] = true;
+$GLOBALS['__test_user_url'] = '';
+$html = quotify_shortcode( array( 'mode' => 'user' ) );
+check( 'user mode empty url no readonly', strpos( $html, 'readonly' ), false );
+$GLOBALS['__test_user_url'] = 'javascript:alert(1)';
+$html = quotify_shortcode( array( 'mode' => 'user' ) );
+check( 'user mode bad scheme no readonly', strpos( $html, 'readonly' ), false );
+check( 'user mode bad scheme not prefilled', strpos( $html, 'javascript:alert' ), false );
+
+$GLOBALS['__test_logged_in'] = false;
+$GLOBALS['__test_user_url'] = '';
 
 echo "ALL SHORTCODE TESTS PASSED\n";

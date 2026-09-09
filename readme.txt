@@ -34,6 +34,7 @@ Customize the form (all attributes optional):
 * `button` — text of the submit button (default: Estimate).
 * `quote_label` — text of the checkout link (default: Get a Quote).
 * `show_pages` / `show_price` / `show_quote` — set to `0` to hide that result inline. Error messages always show.
+* `mode` — `input` (default) lets visitors type any website; `user` prefills the visitor's own WordPress profile website URL and makes it read-only (falls back to a normal input when logged out or no profile URL is set).
 
 Place any result separately anywhere on the page — for example a "You have X pages" panel:
 
@@ -69,6 +70,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.2.0 =
+* New `mode` attribute for `[quotify]`: `user` prefills the visitor's WordPress profile website and makes it read-only (falls back to a normal input when logged out or no profile URL is set).
 
 = 1.1.0 =
 * Per-tier checkout URLs: give any pricing tier its own optional checkout link, falling back to the global template when blank.

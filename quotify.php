@@ -71,23 +71,48 @@ function quotify_shortcode( $atts ): string {
 			'show_pages'  => 1,
 			'show_price'  => 1,
 			'show_quote'  => 1,
+			'mode'        => 'input',
 		),
 		$atts,
 		'quotify'
 	);
+
+	$mode = 'user' === $atts['mode'] ? 'user' : 'input';
+
+	if ( 'user' === $mode ) {
+		$user_url = '';
+		if ( is_user_logged_in() ) {
+			$user_url = (string) wp_get_current_user()->user_url;
+			$scheme   = wp_parse_url( $user_url, PHP_URL_SCHEME );
+
+			if ( '' === $user_url || ! in_array( strtolower( (string) $scheme ), array( 'http', 'https' ), true ) ) {
+				$user_url = '';
+			}
+		}
+	}
 
 	ob_start();
 	?>
 	<div class="quotify-tool">
 		<form class="quotify-form" novalidate>
 			<label class="screen-reader-text" for="quotify-url"><?php esc_html_e( 'Website URL', 'qtfy' ); ?></label>
-			<input
-				type="url"
-				id="quotify-url"
-				class="regular-text"
-				placeholder="https://example.com"
-				required
-			>
+			<?php if ( 'user' === $mode && '' !== $user_url ) : ?>
+				<input
+					type="url"
+					id="quotify-url"
+					class="regular-text"
+					value="<?php echo esc_attr( $user_url ); ?>"
+					readonly
+				>
+			<?php else : ?>
+				<input
+					type="url"
+					id="quotify-url"
+					class="regular-text"
+					placeholder="https://example.com"
+					required
+				>
+			<?php endif; ?>
 			<button type="submit" class="button button-primary quotify-estimate"><?php echo esc_html( $atts['button'] ); ?></button>
 			<span class="quotify-spinner" style="display:none"></span>
 			<div class="quotify-result" aria-live="polite">
