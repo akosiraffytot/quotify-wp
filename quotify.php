@@ -249,7 +249,7 @@ function quotify_ajax_estimate(): void {
 	$tier     = Quotify\Admin::match_tier( $result['count'], $settings['tiers'] );
 	$price    = $tier ? (float) $tier['price'] : null;
 	$template = ( $tier && ! empty( $tier['url'] ) ) ? $tier['url'] : $settings['checkout_url'];
-	$site     = (string) Quotify\Sitemap::normalize_root( $url );
+	$site     = home_url();
 
 	wp_send_json_success(
 		array(

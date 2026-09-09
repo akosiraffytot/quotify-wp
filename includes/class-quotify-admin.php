@@ -275,7 +275,7 @@ class Admin {
 				<ul>
 					<li><code>{page_count}</code> &mdash; <?php esc_html_e( 'the counted number of pages', 'qtfy' ); ?></li>
 					<li><code>{total_price}</code> &mdash; <?php esc_html_e( 'the full price', 'qtfy' ); ?></li>
-					<li><code>{site}</code> &mdash; <?php esc_html_e( 'the website URL being quoted', 'qtfy' ); ?></li>
+					<li><code>{site}</code> &mdash; <?php esc_html_e( 'this website (where the plugin is installed)', 'qtfy' ); ?></li>
 				</ul>
 				<p>
 					<input

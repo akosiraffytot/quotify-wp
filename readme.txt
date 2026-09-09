@@ -72,7 +72,7 @@ No. The tool is fully public and runs entirely over AJAX, with security checks b
 
 = 1.1.0 =
 * Per-tier checkout URLs: give any pricing tier its own optional checkout link, falling back to the global template when blank.
-* New `{site}` token in checkout URL templates — replaced with the website URL being quoted.
+* New `{site}` token in checkout URL templates — replaced with this website's URL (where the plugin is installed).
 
 = 1.0.8 =
 * Auto-clean expired transients from the options table on every count, keeping the database lean without deactivation or cron reliance.

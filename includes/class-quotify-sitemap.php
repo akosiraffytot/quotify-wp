@@ -560,7 +560,7 @@ class Sitemap {
 	 * @param string $url Raw URL.
 	 * @return string|null
 	 */
-	public static function normalize_root( string $url ): ?string {
+	private static function normalize_root( string $url ): ?string {
 		$url   = trim( $url );
 		$parts = '' !== $url ? wp_parse_url( $url ) : false;
 
