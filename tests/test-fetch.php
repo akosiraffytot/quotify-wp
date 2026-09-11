@@ -9,7 +9,7 @@
  */
 
 define( 'ABSPATH', 'C:/tmp/' );
-define( 'QUOTIFY_VERSION', '1.3.0' );
+define( 'QUOTIFY_VERSION', '1.2.2' );
 
 class WP_Error {
 	private $message;

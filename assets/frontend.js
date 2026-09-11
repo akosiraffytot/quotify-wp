@@ -18,10 +18,6 @@
 	}
 
 	function resetField( el ) {
-		if ( el.classList.contains( 'quotify-fluentcart-btn' ) ) {
-			return el;
-		}
-
 		const placeholder = getPlaceholder( el );
 
 		if ( 'quote' === fieldType( el ) ) {
@@ -44,17 +40,9 @@
 
 	function resetAllFields() {
 		document.querySelectorAll( FIELD_SELECTOR ).forEach( resetField );
-
-		document.querySelectorAll( '.quotify-fluentcart-btn' ).forEach( function ( el ) {
-			el.style.display = 'none';
-		} );
 	}
 
 	function fillQuote( el, data ) {
-		if ( el.classList.contains( 'quotify-fluentcart-btn' ) ) {
-			return;
-		}
-
 		const slot = resetField( el );
 
 		if ( ! data.checkout_url ) {
@@ -137,13 +125,6 @@
 					if ( response.success ) {
 						finish( false );
 						fillAllFields( response.data );
-
-						if ( config.instant_checkout && response.data.checkout_url ) {
-							document.querySelectorAll( '.quotify-fluentcart-btn' ).forEach( function ( el ) {
-								el.href = response.data.checkout_url;
-								el.style.display = '';
-							} );
-						}
 						return;
 					}
 
