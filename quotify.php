@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.2.2
+ * Version:     1.3.0
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.2.2' );
+define( 'QUOTIFY_VERSION', '1.3.0' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -66,12 +66,13 @@ function quotify_shortcode( $atts ): string {
 
 	$atts = shortcode_atts(
 		array(
-			'button'      => __( 'Estimate', 'qtfy' ),
-			'quote_label' => __( 'Get a Quote', 'qtfy' ),
-			'show_pages'  => 1,
-			'show_price'  => 1,
-			'show_quote'  => 1,
-			'mode'        => 'all',
+			'button'           => __( 'Estimate', 'qtfy' ),
+			'quote_label'      => __( 'Get a Quote', 'qtfy' ),
+			'show_pages'       => 1,
+			'show_price'       => 1,
+			'show_quote'       => 1,
+			'mode'             => 'all',
+			'instant_checkout' => '',
 		),
 		$atts,
 		'quotify'
@@ -89,6 +90,18 @@ function quotify_shortcode( $atts ): string {
 				$user_url = '';
 			}
 		}
+	}
+
+	$instant_checkout = in_array( strtolower( (string) $atts['instant_checkout'] ), array( '1', 'true', 'yes', 'on' ), true );
+
+	$has_fluentcart = false;
+	if ( $instant_checkout && class_exists( 'FluentCart\App\Modules\Templating\AssetLoader' ) ) {
+		\FluentCart\App\Modules\Templating\AssetLoader::markFrontendAssetsRequired();
+		$has_fluentcart = true;
+	}
+
+	if ( $instant_checkout ) {
+		$GLOBALS['quotify_instant_checkout'] = true;
 	}
 
 	ob_start();
@@ -126,7 +139,19 @@ function quotify_shortcode( $atts ): string {
 					<span class="quotify-field quotify-price" data-quotify-field="price"></span>
 				<?php endif; ?>
 				<?php if ( filter_var( $atts['show_quote'], FILTER_VALIDATE_BOOLEAN ) ) : ?>
-					<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="<?php echo esc_attr( $atts['quote_label'] ); ?>"></span>
+					<?php if ( $has_fluentcart ) : ?>
+						<a
+							class="quotify-field quotify-quote-link quotify-fluentcart-btn"
+							data-quotify-field="quote"
+							data-quotify-quote-label="<?php echo esc_attr( $atts['quote_label'] ); ?>"
+							data-fct-instant-checkout-button
+							data-enable-modal-checkout="yes"
+							href=""
+							style="display:none"
+						><?php echo esc_html( $atts['quote_label'] ); ?></a>
+					<?php else : ?>
+						<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="<?php echo esc_attr( $atts['quote_label'] ); ?>"></span>
+					<?php endif; ?>
 				<?php endif; ?>
 			</div>
 		</form>
@@ -208,13 +233,14 @@ function quotify_enqueue_frontend_assets(): void {
 		'quotify-frontend',
 		'quotifyFront',
 		array(
-			'ajaxurl' => admin_url( 'admin-ajax.php' ),
-			'nonce'   => wp_create_nonce( 'quotify_estimate' ),
+			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
+			'nonce'            => wp_create_nonce( 'quotify_estimate' ),
+			'instant_checkout' => ! empty( $GLOBALS['quotify_instant_checkout'] ),
 			/* translators: %s: page count. */
-			'pages'   => __( '%s pages', 'qtfy' ),
-			'quote'   => __( 'Get a Quote', 'qtfy' ),
-			'empty'   => __( 'Please enter a website URL.', 'qtfy' ),
-			'error'   => __( 'Something went wrong. Please try again.', 'qtfy' ),
+			'pages'            => __( '%s pages', 'qtfy' ),
+			'quote'            => __( 'Get a Quote', 'qtfy' ),
+			'empty'            => __( 'Please enter a website URL.', 'qtfy' ),
+			'error'            => __( 'Something went wrong. Please try again.', 'qtfy' ),
 		)
 	);
 }

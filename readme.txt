@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.2
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -35,6 +35,7 @@ Customize the form (all attributes optional):
 * `quote_label` — text of the checkout link (default: Get a Quote).
 * `show_pages` / `show_price` / `show_quote` — set to `0` to hide that result inline. Error messages always show.
 * `mode` — `all` (default) lets visitors type any website; `user` prefills the visitor's own WordPress profile website URL in a disabled field, and shows a prompt to add a profile URL when none is set. The Estimate button is disabled while the URL field is empty in both modes.
+* `instant_checkout` — set to `yes` to turn the "Get a Quote" button into a FluentCart instant-checkout button that opens FluentCart's modal checkout (requires the FluentCart plugin and a Checkout URL configured on the matched pricing tier).
 
 Place any result separately anywhere on the page — for example a "You have X pages" panel:
 
@@ -70,6 +71,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.3.0 =
+* New `instant_checkout="yes"` attribute for `[quotify]`: the "Get a Quote" button becomes a FluentCart instant-checkout button that opens FluentCart's modal checkout instead of linking away. Works on any page when FluentCart is active.
 
 = 1.2.2 =
 * Fix checkout URL query strings: the `&` in checkout URL templates is no longer HTML-encoded, so links like `?page_count=50&price=120` work instead of being broken.
