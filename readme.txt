@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.2
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,7 +16,7 @@ Quotify gives your visitors a live tool: they type a website URL, hit the button
 
 Behind the scenes Quotify discovers the site's XML sitemap (robots.txt `Sitemap:` entries first, then common paths), streams the count with a performance-safe cap, matches it to your pricing tiers, and links to your checkout.
 
-* **Configurable pricing** — Tools > Quotify: add as many tiers as you want (last tier open-ended), each with its own optional checkout URL, plus a global checkout URL template with `{page_count}`, `{total_price}` and `{site}` tokens ($ fixed, formatted for your locale).
+* **Configurable pricing** — Tools > Quotify: add as many tiers as you want (last tier open-ended), each with its own optional checkout URL, plus a global checkout URL template with `{page_count}`, `{total_price}` and `{site}` tokens ($ fixed, formatted for your locale). An optional per-tier **Variation ID** turns the quote button into a FluentCart instant modal checkout.
 * **Performance limits** — fetch timeout, response size cap, depth and sub-sitemap caps, per-site 1-hour cache and a 5,001-page early stop.
 * **Place results anywhere** — choose which results show inline, or drop the count, price and "Get a quote" link into separate spots on the page with dedicated shortcodes.
 * **Safe by default** — SSRF guard blocks private/loopback addresses, per-IP request throttling, nonce-protected requests.
@@ -35,6 +35,7 @@ Customize the form (all attributes optional):
 * `quote_label` — text of the checkout link (default: Get a Quote).
 * `show_pages` / `show_price` / `show_quote` — set to `0` to hide that result inline. Error messages always show.
 * `mode` — `all` (default) lets visitors type any website; `user` prefills the visitor's own WordPress profile website URL in a disabled field, and shows a prompt to add a profile URL when none is set. The Estimate button is disabled while the URL field is empty in both modes.
+* `instant_checkout` — set to `yes` (or `1`/`true`/`on`) to make the quote button open FluentCart's instant modal checkout instead of linking away. Requires the FluentCart plugin and a **Variation ID** set on the matched pricing tier. The tier's Checkout URL field is ignored while this is enabled.
 
 Place any result separately anywhere on the page — for example a "You have X pages" panel:
 
@@ -70,6 +71,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.3.1 =
+* New `instant_checkout="yes"` attribute for `[quotify]`: the quote button becomes a hidden FluentCart instant-checkout button that opens FluentCart's modal checkout with the matched tier's product after the estimate. New per-tier **Variation ID** field in Tools > Quotify (the tier's Checkout URL is ignored while instant checkout is enabled; the button stays hidden when no Variation ID is set).
 
 = 1.2.2 =
 * Fix checkout URL query strings: the `&` in checkout URL templates is no longer HTML-encoded, so links like `?page_count=50&price=120` work instead of being broken.

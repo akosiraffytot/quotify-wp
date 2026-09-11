@@ -94,6 +94,11 @@ $html = quotify_shortcode( array( 'show_pages' => 1, 'show_price' => 'true' ) );
 check( 'pages shown', strpos( $html, 'data-quotify-field="count"' ) !== false, true );
 check( 'price shown', strpos( $html, 'data-quotify-field="price"' ) !== false, true );
 
+// 3b. instant_checkout="yes" without FluentCart active degrades to the plain quote field.
+$html = quotify_shortcode( array( 'instant_checkout' => 'yes' ) );
+check( 'instant checkout degrades to quote span', strpos( $html, '<span class="quotify-field quotify-quote-link"' ) !== false, true );
+check( 'instant checkout no fluentcart wrap', strpos( $html, 'quotify-fluentcart-wrap' ), false );
+
 // 4. [quotify_count] empty vs placeholder.
 $html = quotify_count_shortcode( array() );
 check( 'count default', $html, '<span class="quotify-field quotify-count" data-quotify-field="count" data-quotify-placeholder=""></span>' );

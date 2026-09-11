@@ -40,6 +40,29 @@
 
 	function resetAllFields() {
 		document.querySelectorAll( FIELD_SELECTOR ).forEach( resetField );
+
+		document.querySelectorAll( '.quotify-fluentcart-wrap' ).forEach( function ( wrap ) {
+			wrap.style.display = 'none';
+		} );
+	}
+
+	function revealFluentCart( data ) {
+		if ( ! config.instant_checkout || ! data.fluentcart_url ) {
+			return;
+		}
+
+		document.querySelectorAll( '.quotify-fluentcart-wrap' ).forEach( function ( wrap ) {
+			const btn = wrap.querySelector( 'a[data-fct-instant-checkout-button]' );
+
+			if ( ! btn ) {
+				return;
+			}
+
+			btn.href = data.fluentcart_url;
+			btn.setAttribute( 'data-url', data.fluentcart_url );
+			btn.setAttribute( 'data-cart-id', data.fluentcart_variation_id || '' );
+			wrap.style.display = '';
+		} );
 	}
 
 	function fillQuote( el, data ) {
@@ -112,6 +135,7 @@
 			body.append( 'action', 'quotify_estimate' );
 			body.append( 'nonce', config.nonce );
 			body.append( 'url', urlInput.value.trim() );
+			body.append( 'instant_checkout', config.instant_checkout ? '1' : '' );
 
 			fetch( config.ajaxurl, {
 				method: 'POST',
@@ -125,6 +149,7 @@
 					if ( response.success ) {
 						finish( false );
 						fillAllFields( response.data );
+						revealFluentCart( response.data );
 						return;
 					}
 

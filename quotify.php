@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.2.2
+ * Version:     1.3.1
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.2.2' );
+define( 'QUOTIFY_VERSION', '1.3.1' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -66,12 +66,13 @@ function quotify_shortcode( $atts ): string {
 
 	$atts = shortcode_atts(
 		array(
-			'button'      => __( 'Estimate', 'qtfy' ),
-			'quote_label' => __( 'Get a Quote', 'qtfy' ),
-			'show_pages'  => 1,
-			'show_price'  => 1,
-			'show_quote'  => 1,
-			'mode'        => 'all',
+			'button'           => __( 'Estimate', 'qtfy' ),
+			'quote_label'      => __( 'Get a Quote', 'qtfy' ),
+			'show_pages'       => 1,
+			'show_price'       => 1,
+			'show_quote'       => 1,
+			'mode'             => 'all',
+			'instant_checkout' => '',
 		),
 		$atts,
 		'quotify'
@@ -89,6 +90,32 @@ function quotify_shortcode( $atts ): string {
 				$user_url = '';
 			}
 		}
+	}
+
+	$instant_checkout = in_array( strtolower( (string) $atts['instant_checkout'] ), array( '1', 'true', 'yes', 'on' ), true );
+
+	/*
+	 * FluentCart instant checkout: render FluentCart's own
+	 * [fluent_cart_checkout_button] hidden, seeded with the first tier that
+	 * has a variation ID. After the estimate AJAX returns the matched tier's
+	 * variation, the frontend swaps the button's href to the final
+	 * modal_checkout URL and reveals it. The seeded button also makes
+	 * FluentCart register its modal container + assets on this page.
+	 */
+	$fluentcart_seed = '';
+	if ( $instant_checkout && class_exists( 'FluentCart\App\Hooks\Handlers\ShortCodes\Buttons\DirectCheckoutShortcode' ) ) {
+		$tiers = Quotify\Admin::get_settings()['tiers'];
+
+		foreach ( $tiers as $tier ) {
+			if ( ! empty( $tier['variation_id'] ) ) {
+				$fluentcart_seed = absint( $tier['variation_id'] );
+				break;
+			}
+		}
+	}
+
+	if ( $instant_checkout && $fluentcart_seed ) {
+		$GLOBALS['quotify_instant_checkout'] = true;
 	}
 
 	ob_start();
@@ -126,7 +153,21 @@ function quotify_shortcode( $atts ): string {
 					<span class="quotify-field quotify-price" data-quotify-field="price"></span>
 				<?php endif; ?>
 				<?php if ( filter_var( $atts['show_quote'], FILTER_VALIDATE_BOOLEAN ) ) : ?>
-					<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="<?php echo esc_attr( $atts['quote_label'] ); ?>"></span>
+					<?php if ( $fluentcart_seed ) : ?>
+						<div class="quotify-fluentcart-wrap" style="display:none">
+							<?php
+							echo do_shortcode(
+								sprintf(
+									'[fluent_cart_checkout_button variation_id="%1$d" instant_checkout="yes" button_text="%2$s"]',
+									$fluentcart_seed,
+									esc_attr( str_replace( array( '"', "'" ), '', $atts['quote_label'] ) )
+								)
+							);
+							?>
+						</div>
+					<?php else : ?>
+						<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="<?php echo esc_attr( $atts['quote_label'] ); ?>"></span>
+					<?php endif; ?>
 				<?php endif; ?>
 			</div>
 		</form>
@@ -208,13 +249,14 @@ function quotify_enqueue_frontend_assets(): void {
 		'quotify-frontend',
 		'quotifyFront',
 		array(
-			'ajaxurl' => admin_url( 'admin-ajax.php' ),
-			'nonce'   => wp_create_nonce( 'quotify_estimate' ),
+			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
+			'nonce'            => wp_create_nonce( 'quotify_estimate' ),
+			'instant_checkout' => ! empty( $GLOBALS['quotify_instant_checkout'] ),
 			/* translators: %s: page count. */
-			'pages'   => __( '%s pages', 'qtfy' ),
-			'quote'   => __( 'Get a Quote', 'qtfy' ),
-			'empty'   => __( 'Please enter a website URL.', 'qtfy' ),
-			'error'   => __( 'Something went wrong. Please try again.', 'qtfy' ),
+			'pages'            => __( '%s pages', 'qtfy' ),
+			'quote'            => __( 'Get a Quote', 'qtfy' ),
+			'empty'            => __( 'Please enter a website URL.', 'qtfy' ),
+			'error'            => __( 'Something went wrong. Please try again.', 'qtfy' ),
 		)
 	);
 }
@@ -254,6 +296,12 @@ function quotify_ajax_estimate(): void {
 		);
 	}
 
+	$instant_checkout = isset( $_POST['instant_checkout'] ) && in_array(
+		strtolower( sanitize_text_field( wp_unslash( $_POST['instant_checkout'] ) ) ),
+		array( '1', 'true', 'yes', 'on' ),
+		true
+	);
+
 	$result = Quotify\Sitemap::count_site( $url );
 
 	if ( 'ok' !== $result['status'] ) {
@@ -275,19 +323,39 @@ function quotify_ajax_estimate(): void {
 	$settings = Quotify\Admin::get_settings();
 	$tier     = Quotify\Admin::match_tier( $result['count'], $settings['tiers'] );
 	$price    = $tier ? (float) $tier['price'] : null;
-	$template = ( $tier && ! empty( $tier['url'] ) ) ? $tier['url'] : $settings['checkout_url'];
-	$site     = home_url();
-	$checkout = null !== $price ? Quotify\Admin::build_checkout_url( $result['count'], $price, $template, $site ) : '';
-	$checkout = 0 === strpos( (string) $checkout, 'http://' ) || 0 === strpos( (string) $checkout, 'https://' ) ? $checkout : '';
+
+	// Instant checkout drives the button from the tier's FluentCart variation
+	// ID; the Checkout URL template is ignored entirely for this flow.
+	$fluentcart_url = '';
+	if ( $instant_checkout ) {
+		if ( $tier && ! empty( $tier['variation_id'] ) ) {
+			$fluentcart_url = add_query_arg(
+				array(
+					'fluent-cart' => 'modal_checkout',
+					'item_id'     => absint( $tier['variation_id'] ),
+					'quantity'    => 1,
+				),
+				home_url()
+			);
+		}
+		$checkout = '';
+	} else {
+		$template = ( $tier && ! empty( $tier['url'] ) ) ? $tier['url'] : $settings['checkout_url'];
+		$site     = home_url();
+		$checkout = null !== $price ? Quotify\Admin::build_checkout_url( $result['count'], $price, $template, $site ) : '';
+		$checkout = 0 === strpos( (string) $checkout, 'http://' ) || 0 === strpos( (string) $checkout, 'https://' ) ? $checkout : '';
+	}
 
 	wp_send_json_success(
 		array(
-			'page_count'      => $result['count'],
-			'count_display'   => number_format_i18n( $result['count'], 0 ),
-			'capped'          => $result['capped'],
-			'price'           => $price,
-			'formatted_price' => Quotify\Admin::price_label( $price ),
-			'checkout_url'    => $checkout,
+			'page_count'              => $result['count'],
+			'count_display'           => number_format_i18n( $result['count'], 0 ),
+			'capped'                  => $result['capped'],
+			'price'                   => $price,
+			'formatted_price'         => Quotify\Admin::price_label( $price ),
+			'checkout_url'            => $checkout,
+			'fluentcart_url'          => $fluentcart_url,
+			'fluentcart_variation_id' => $instant_checkout && $tier ? ( $tier['variation_id'] ?? '' ) : '',
 		)
 	);
 }

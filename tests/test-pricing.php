@@ -7,7 +7,7 @@
 
 define( 'ABSPATH', 'C:/tmp/' );
 define( 'QUOTIFY_URL', 'http://unit.test/wp-content/plugins/quotify/' );
-define( 'QUOTIFY_VERSION', '1.2.2' );
+define( 'QUOTIFY_VERSION', '1.3.1' );
 
 function number_format_i18n( $number, $decimals = 0 ) {
 	return number_format( $number, $decimals );
@@ -111,6 +111,14 @@ check( 'match_tier blank url returns tier', Admin::match_tier( 60, $tiered ), $t
 check( 'match_tier no match null', Admin::match_tier( 0, array() ), null );
 check( 'get_price delegates', Admin::get_price( 10, $tiered ), 120.0 );
 check( 'get_price null when no match', Admin::get_price( 0, array() ), null );
+
+// match_tier carries the FluentCart variation_id through to the caller.
+$tiered_v = array(
+	array( 'min' => 0,   'max' => '50', 'price' => 120.0, 'variation_id' => 113, 'url' => '' ),
+	array( 'min' => 51,  'max' => '',   'price' => 160.0, 'variation_id' => '',  'url' => '' ),
+);
+check( 'match_tier carries variation_id', Admin::match_tier( 10, $tiered_v ), $tiered_v[0] );
+check( 'match_tier blank variation tier', Admin::match_tier( 60, $tiered_v ), $tiered_v[1] );
 check(
 	'tier url token substitution',
 	Admin::build_checkout_url( 10, 120.0, $tiered[0]['url'], 'https://bikes.example' ),

@@ -242,6 +242,7 @@ class Admin {
 							<th><?php esc_html_e( 'Min pages', 'qtfy' ); ?></th>
 							<th><?php esc_html_e( 'Max pages (blank = open-ended)', 'qtfy' ); ?></th>
 							<th><?php esc_html_e( 'Price ($)', 'qtfy' ); ?></th>
+							<th><?php esc_html_e( 'Variation ID (FluentCart, optional)', 'qtfy' ); ?></th>
 							<th><?php esc_html_e( 'Checkout URL (optional)', 'qtfy' ); ?></th>
 							<th>&nbsp;</th>
 						</tr>
@@ -252,10 +253,11 @@ class Admin {
 							self::render_tier_row(
 								0,
 								array(
-									'min'   => '',
-									'max'   => '',
-									'price' => '',
-									'url'   => '',
+									'min'          => '',
+									'max'          => '',
+									'price'        => '',
+									'variation_id' => '',
+									'url'          => '',
 								)
 							);
 							?>
@@ -356,6 +358,15 @@ class Admin {
 					step="0.01"
 					name="<?php echo esc_attr( sprintf( '%s[tiers][%d][price]', self::OPTION_NAME, $index ) ); ?>"
 					value="<?php echo esc_attr( $tier['price'] ); ?>"
+				>
+			</td>
+			<td>
+				<input
+					type="number"
+					class="small-text"
+					min="0"
+					name="<?php echo esc_attr( sprintf( '%s[tiers][%d][variation_id]', self::OPTION_NAME, $index ) ); ?>"
+					value="<?php echo esc_attr( $tier['variation_id'] ?? '' ); ?>"
 				>
 			</td>
 			<td>
@@ -530,20 +541,22 @@ class Admin {
 				continue;
 			}
 
-			$min   = isset( $raw['min'] ) ? trim( (string) $raw['min'] ) : '';
-			$max   = isset( $raw['max'] ) ? trim( (string) $raw['max'] ) : '';
-			$price = isset( $raw['price'] ) ? trim( (string) $raw['price'] ) : '';
-			$url   = isset( $raw['url'] ) ? trim( (string) $raw['url'] ) : '';
+			$min          = isset( $raw['min'] ) ? trim( (string) $raw['min'] ) : '';
+			$max          = isset( $raw['max'] ) ? trim( (string) $raw['max'] ) : '';
+			$price        = isset( $raw['price'] ) ? trim( (string) $raw['price'] ) : '';
+			$variation_id = isset( $raw['variation_id'] ) ? trim( (string) $raw['variation_id'] ) : '';
+			$url          = isset( $raw['url'] ) ? trim( (string) $raw['url'] ) : '';
 
-			if ( '' === $min && '' === $max && '' === $price && '' === $url ) {
+			if ( '' === $min && '' === $max && '' === $price && '' === $variation_id && '' === $url ) {
 				continue;
 			}
 
 			$normalized[] = array(
-				'min'   => '' !== $min ? absint( $min ) : 0,
-				'max'   => '' !== $max ? absint( $max ) : '',
-				'price' => '' !== $price ? self::normalize_price( (float) $price ) : 0.0,
-				'url'   => '' !== $url ? sanitize_text_field( $url ) : '',
+				'min'          => '' !== $min ? absint( $min ) : 0,
+				'max'          => '' !== $max ? absint( $max ) : '',
+				'price'        => '' !== $price ? self::normalize_price( (float) $price ) : 0.0,
+				'variation_id' => '' !== $variation_id ? absint( $variation_id ) : '',
+				'url'          => '' !== $url ? sanitize_text_field( $url ) : '',
 			);
 		}
 

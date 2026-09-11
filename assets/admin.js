@@ -22,6 +22,7 @@
 			'<td><input type="number" class="small-text" min="0" name="quotify_settings[tiers][' + index + '][min]" value=""></td>' +
 			'<td><input type="number" class="small-text" min="0" name="quotify_settings[tiers][' + index + '][max]" value=""></td>' +
 			'<td><input type="number" class="small-text" min="0" step="0.01" name="quotify_settings[tiers][' + index + '][price]" value=""></td>' +
+			'<td><input type="number" class="small-text" min="0" name="quotify_settings[tiers][' + index + '][variation_id]" value=""></td>' +
 			'<td><input type="text" class="regular-text code" name="quotify_settings[tiers][' + index + '][url]" value="" placeholder="https://…/?pages={page_count}&t={total_price}"></td>' +
 			'<td><button type="button" class="button-link-delete quotify-remove-tier">' +
 			removeLabel + '</button></td>' +
