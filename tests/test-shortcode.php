@@ -121,6 +121,14 @@ check( 'quote label escaped', strpos( $html, '<script>' ), false );
 $html = quotify_count_shortcode( array( 'placeholder' => '<b>&</b>' ) );
 check( 'placeholder escaped in attr + body', strpos( $html, '<b>' ), false );
 
+// 6b. Standalone quote with instant_checkout active but no FluentCart seed
+// degrades to the plain span.
+$GLOBALS['quotify_instant_checkout'] = true;
+$html = quotify_quote_shortcode( array( 'label' => 'Buy Now' ) );
+check( 'standalone quote no fluentcart seed degrades to span', strpos( $html, 'data-quotify-field="quote"' ) !== false, true );
+check( 'standalone quote no fluentcart wrap', strpos( $html, 'quotify-fluentcart-wrap' ), false );
+unset( $GLOBALS['quotify_instant_checkout'] );
+
 // 7. Field shortcodes flag the page for asset enqueueing.
 unset( $GLOBALS['quotify_shortcode_rendered'] );
 quotify_price_shortcode( array() );

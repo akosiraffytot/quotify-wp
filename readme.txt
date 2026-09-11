@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -43,7 +43,7 @@ Place any result separately anywhere on the page — for example a "You have X p
 `[quotify_price]`
 `[quotify_quote label="Buy Now"]`
 
-Each accepts a `placeholder` attribute (e.g. `[quotify_count placeholder="--"]`). Results fill in live when the visitor runs an estimate; other spots on the page fill with the same values.
+Each accepts a `placeholder` attribute (e.g. `[quotify_count placeholder="--"]`). Results fill in live when the visitor runs an estimate; other spots on the page fill with the same values. When `instant_checkout="yes"` is active on `[quotify]`, a `[quotify_quote]` field on the same page renders the FluentCart modal-checkout button too — so you can hide the inline quote (`show_quote="0"`) and place only the button elsewhere.
 
 Sites with no discoverable sitemap, or with more than 5,000 pages, fall back to a clear message or a "Contact us" label instead of a price — letting you sell a custom quote.
 
@@ -71,6 +71,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.3.2 =
+* The standalone `[quotify_quote]` shortcode now renders the FluentCart instant-checkout button too, so you can keep the inline quote hidden (`show_quote="0"`) on `[quotify]` and still get the modal checkout button from a field placed elsewhere on the page.
 
 = 1.3.1 =
 * New `instant_checkout="yes"` attribute for `[quotify]`: the quote button becomes a hidden FluentCart instant-checkout button that opens FluentCart's modal checkout with the matched tier's product after the estimate. New per-tier **Variation ID** field in Tools > Quotify (the tier's Checkout URL is ignored while instant checkout is enabled; the button stays hidden when no Variation ID is set).

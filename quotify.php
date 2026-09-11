@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.3.1
+ * Version:     1.3.2
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.3.1' );
+define( 'QUOTIFY_VERSION', '1.3.2' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -102,17 +102,7 @@ function quotify_shortcode( $atts ): string {
 	 * modal_checkout URL and reveals it. The seeded button also makes
 	 * FluentCart register its modal container + assets on this page.
 	 */
-	$fluentcart_seed = '';
-	if ( $instant_checkout && class_exists( 'FluentCart\App\Hooks\Handlers\ShortCodes\Buttons\DirectCheckoutShortcode' ) ) {
-		$tiers = Quotify\Admin::get_settings()['tiers'];
-
-		foreach ( $tiers as $tier ) {
-			if ( ! empty( $tier['variation_id'] ) ) {
-				$fluentcart_seed = absint( $tier['variation_id'] );
-				break;
-			}
-		}
-	}
+	$fluentcart_seed = $instant_checkout ? quotify_get_fluentcart_seed() : '';
 
 	if ( $instant_checkout && $fluentcart_seed ) {
 		$GLOBALS['quotify_instant_checkout'] = true;
@@ -160,7 +150,7 @@ function quotify_shortcode( $atts ): string {
 								sprintf(
 									'[fluent_cart_checkout_button variation_id="%1$d" instant_checkout="yes" button_text="%2$s"]',
 									$fluentcart_seed,
-									esc_attr( str_replace( array( '"', "'" ), '', $atts['quote_label'] ) )
+									esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $atts['quote_label'] ) )
 								)
 							);
 							?>
@@ -177,6 +167,29 @@ function quotify_shortcode( $atts ): string {
 }
 
 /**
+ * First configured FluentCart tier variation ID, used as the "seed" for the
+ * hidden instant-checkout button. Falls back to '' when FluentCart is not
+ * active or no tier has a variation ID set.
+ *
+ * @return string
+ */
+function quotify_get_fluentcart_seed(): string {
+	if ( ! class_exists( 'FluentCart\App\Hooks\Handlers\ShortCodes\Buttons\DirectCheckoutShortcode' ) ) {
+		return '';
+	}
+
+	$tiers = Quotify\Admin::get_settings()['tiers'];
+
+	foreach ( $tiers as $tier ) {
+		if ( ! empty( $tier['variation_id'] ) ) {
+			return (string) absint( $tier['variation_id'] );
+		}
+	}
+
+	return '';
+}
+
+/**
  * Shared renderer for the standalone [quotify_*] field shortcodes.
  *
  * @param array|string $atts  Shortcode attributes.
@@ -185,6 +198,23 @@ function quotify_shortcode( $atts ): string {
  */
 function quotify_field_shortcode( $atts, string $field ): string {
 	$GLOBALS['quotify_shortcode_rendered'] = true;
+
+	if ( 'quote' === $field && ! empty( $GLOBALS['quotify_instant_checkout'] ) ) {
+		$seed = quotify_get_fluentcart_seed();
+
+		if ( $seed ) {
+			$raw_atts = is_array( $atts ) ? $atts : array();
+			$label    = isset( $raw_atts['label'] ) ? (string) $raw_atts['label'] : __( 'Get a Quote', 'qtfy' );
+
+			return '<div class="quotify-fluentcart-wrap" style="display:none">' . do_shortcode(
+				sprintf(
+					'[fluent_cart_checkout_button variation_id="%1$d" instant_checkout="yes" button_text="%2$s"]',
+					(int) $seed,
+					esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $label ) )
+				)
+			) . '</div>';
+		}
+	}
 
 	$defaults = array( 'placeholder' => '' );
 	if ( 'quote' === $field ) {
