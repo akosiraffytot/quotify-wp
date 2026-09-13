@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.3.3 =
+* Fix a PHP fatal error ("Cannot use output buffering in output buffering display handlers") on pages rendering `[quotify]`. The form shortcode no longer uses PHP output buffering, so it works inside themes and builders that wrap content in `ob_start()` handlers.
 
 = 1.3.2 =
 * The standalone `[quotify_quote]` shortcode now renders the FluentCart instant-checkout button too, so you can keep the inline quote hidden (`show_quote="0"`) on `[quotify]` and still get the modal checkout button from a field placed elsewhere on the page.

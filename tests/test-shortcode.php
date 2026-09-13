@@ -32,6 +32,10 @@ function esc_html_e( $text, $domain = 'default' ) {
 	echo esc_html( $text ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 
+function esc_html__( $text, $domain = 'default' ) {
+	return esc_html( $text );
+}
+
 function __( $text, $domain = 'default' ) {
 	return $text;
 }

@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.3.2
+ * Version:     1.3.3
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.3.2' );
+define( 'QUOTIFY_VERSION', '1.3.3' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -108,62 +108,59 @@ function quotify_shortcode( $atts ): string {
 		$GLOBALS['quotify_instant_checkout'] = true;
 	}
 
-	ob_start();
-	?>
-	<div class="quotify-tool">
-		<form class="quotify-form" novalidate>
-			<label class="screen-reader-text" for="quotify-url"><?php esc_html_e( 'Website URL', 'qtfy' ); ?></label>
-			<?php if ( 'user' === $mode ) : ?>
-				<?php if ( '' === $user_url ) : ?>
-					<p class="quotify-profile-hint"><?php esc_html_e( 'Add a website URL to your profile to use it here.', 'qtfy' ); ?></p>
-				<?php endif; ?>
-				<input
-					type="url"
-					id="quotify-url"
-					class="regular-text"
-					value="<?php echo esc_attr( $user_url ); ?>"
-					disabled
-				>
-			<?php else : ?>
-				<input
-					type="url"
-					id="quotify-url"
-					class="regular-text"
-					placeholder="https://example.com"
-				>
-			<?php endif; ?>
-			<button type="submit" class="button button-primary quotify-estimate"><?php echo esc_html( $atts['button'] ); ?></button>
-			<span class="quotify-spinner" style="display:none"></span>
-			<div class="quotify-result" aria-live="polite">
-				<div class="quotify-status"></div>
-				<?php if ( filter_var( $atts['show_pages'], FILTER_VALIDATE_BOOLEAN ) ) : ?>
-					<span class="quotify-field quotify-count" data-quotify-field="count"></span>
-				<?php endif; ?>
-				<?php if ( filter_var( $atts['show_price'], FILTER_VALIDATE_BOOLEAN ) ) : ?>
-					<span class="quotify-field quotify-price" data-quotify-field="price"></span>
-				<?php endif; ?>
-				<?php if ( filter_var( $atts['show_quote'], FILTER_VALIDATE_BOOLEAN ) ) : ?>
-					<?php if ( $fluentcart_seed ) : ?>
-						<div class="quotify-fluentcart-wrap" style="display:none">
-							<?php
-							echo do_shortcode(
-								sprintf(
-									'[fluent_cart_checkout_button variation_id="%1$d" instant_checkout="yes" button_text="%2$s"]',
-									$fluentcart_seed,
-									esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $atts['quote_label'] ) )
-								)
-							);
-							?>
-						</div>
-					<?php else : ?>
-						<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="<?php echo esc_attr( $atts['quote_label'] ); ?>"></span>
-					<?php endif; ?>
-				<?php endif; ?>
-			</div>
-		</form>
-	</div>
-	<?php
-	return ob_get_clean();
+	$input_html = '';
+	$hint_html  = '';
+	if ( 'user' === $mode ) {
+		if ( '' === $user_url ) {
+			$hint_html = '<p class="quotify-profile-hint">' . esc_html__( 'Add a website URL to your profile to use it here.', 'qtfy' ) . '</p>';
+		}
+		$input_html = '<input type="url" id="quotify-url" class="regular-text" value="' . esc_attr( $user_url ) . '" disabled>';
+	} else {
+		$input_html = '<input type="url" id="quotify-url" class="regular-text" placeholder="https://example.com">';
+	}
+
+	// No output buffering here: comment/theme pipelines wrap content in
+	// ob_start() display handlers, and a nested ob_start() from a shortcode
+	// is a PHP fatal ("Cannot use output buffering in output buffering
+	// display handlers"). The whole form is built as a string instead.
+	$count_html = filter_var( $atts['show_pages'], FILTER_VALIDATE_BOOLEAN )
+		? '<span class="quotify-field quotify-count" data-quotify-field="count"></span>'
+		: '';
+
+	$price_html = filter_var( $atts['show_price'], FILTER_VALIDATE_BOOLEAN )
+		? '<span class="quotify-field quotify-price" data-quotify-field="price"></span>'
+		: '';
+
+	$quote_html = '';
+	if ( filter_var( $atts['show_quote'], FILTER_VALIDATE_BOOLEAN ) ) {
+		if ( $fluentcart_seed ) {
+			$quote_html = '<div class="quotify-fluentcart-wrap" style="display:none">' . do_shortcode(
+				sprintf(
+					'[fluent_cart_checkout_button variation_id="%1$d" instant_checkout="yes" button_text="%2$s"]',
+					$fluentcart_seed,
+					esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $atts['quote_label'] ) )
+				)
+			) . '</div>';
+		} else {
+			$quote_html = '<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="' . esc_attr( $atts['quote_label'] ) . '"></span>';
+		}
+	}
+
+	return '<div class="quotify-tool">'
+		. '<form class="quotify-form" novalidate>'
+		. '<label class="screen-reader-text" for="quotify-url">' . esc_html__( 'Website URL', 'qtfy' ) . '</label>'
+		. $hint_html
+		. $input_html
+		. '<button type="submit" class="button button-primary quotify-estimate">' . esc_html( $atts['button'] ) . '</button>'
+		. '<span class="quotify-spinner" style="display:none"></span>'
+		. '<div class="quotify-result" aria-live="polite">'
+		. '<div class="quotify-status"></div>'
+		. $count_html
+		. $price_html
+		. $quote_html
+		. '</div>'
+		. '</form>'
+		. '</div>';
 }
 
 /**
