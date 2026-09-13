@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.3.3
+ * Version:     1.3.4
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.3.3' );
+define( 'QUOTIFY_VERSION', '1.3.4' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -105,6 +105,7 @@ function quotify_shortcode( $atts ): string {
 	$fluentcart_seed = $instant_checkout ? quotify_get_fluentcart_seed() : '';
 
 	if ( $instant_checkout && $fluentcart_seed ) {
+		quotify_mark_fluentcart();
 		$GLOBALS['quotify_instant_checkout'] = true;
 	}
 
@@ -134,13 +135,16 @@ function quotify_shortcode( $atts ): string {
 	$quote_html = '';
 	if ( filter_var( $atts['show_quote'], FILTER_VALIDATE_BOOLEAN ) ) {
 		if ( $fluentcart_seed ) {
-			$quote_html = '<div class="quotify-fluentcart-wrap" style="display:none">' . do_shortcode(
-				sprintf(
-					'[fluent_cart_checkout_button variation_id="%1$d" instant_checkout="yes" button_text="%2$s"]',
-					$fluentcart_seed,
-					esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $atts['quote_label'] ) )
-				)
-			) . '</div>';
+			/*
+			 * The FluentCart button is NOT rendered inline into the page
+			 * content: content processors (page builders, wp_filter_content_tags)
+			 * run WP_HTML_Tag_Processor over the_content inside their own
+			 * ob_start() display handlers, and the href-swapped anchor tripped
+			 * PHP's "Cannot use output buffering in output buffering display
+			 * handlers" fatal there. Render only an inert placeholder; the
+			 * frontend builds the real button with JS.
+			 */
+			$quote_html = '<div class="quotify-fluentcart-wrap" style="display:none" data-quotify-fluentcart-label="' . esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $atts['quote_label'] ) ) . '"></div>';
 		} else {
 			$quote_html = '<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="' . esc_attr( $atts['quote_label'] ) . '"></span>';
 		}
@@ -187,6 +191,19 @@ function quotify_get_fluentcart_seed(): string {
 }
 
 /**
+ * Tell FluentCart the frontend needs its assets: this makes the globally
+ * registered modal-checkout footer hook render the modal container + CSS
+ * (FluentCart's WebRoutes::renderModalCheckout() checks isFrontendAssetsMarked()).
+ *
+ * @return void
+ */
+function quotify_mark_fluentcart(): void {
+	if ( class_exists( 'FluentCart\App\Modules\Templating\AssetLoader' ) ) {
+		\FluentCart\App\Modules\Templating\AssetLoader::markFrontendAssetsRequired();
+	}
+}
+
+/**
  * Shared renderer for the standalone [quotify_*] field shortcodes.
  *
  * @param array|string $atts  Shortcode attributes.
@@ -200,16 +217,13 @@ function quotify_field_shortcode( $atts, string $field ): string {
 		$seed = quotify_get_fluentcart_seed();
 
 		if ( $seed ) {
+			quotify_mark_fluentcart();
 			$raw_atts = is_array( $atts ) ? $atts : array();
 			$label    = isset( $raw_atts['label'] ) ? (string) $raw_atts['label'] : __( 'Get a Quote', 'qtfy' );
 
-			return '<div class="quotify-fluentcart-wrap" style="display:none">' . do_shortcode(
-				sprintf(
-					'[fluent_cart_checkout_button variation_id="%1$d" instant_checkout="yes" button_text="%2$s"]',
-					(int) $seed,
-					esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $label ) )
-				)
-			) . '</div>';
+			// Inert placeholder only; the frontend builds the real button via
+			// JS so content processors never see FluentCart's anchor markup.
+			return '<div class="quotify-fluentcart-wrap" style="display:none" data-quotify-fluentcart-label="' . esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $label ) ) . '"></div>';
 		}
 	}
 
@@ -279,6 +293,9 @@ function quotify_enqueue_frontend_assets(): void {
 			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
 			'nonce'            => wp_create_nonce( 'quotify_estimate' ),
 			'instant_checkout' => ! empty( $GLOBALS['quotify_instant_checkout'] ),
+			'fluentcart_seed'  => ! empty( $GLOBALS['quotify_instant_checkout'] ) ? (int) quotify_get_fluentcart_seed() : '',
+			'fluentcart_home'  => home_url(),
+			'fluentcart_class' => 'wp-block-button__link wp-element-button',
 			/* translators: %s: page count. */
 			'pages'            => __( '%s pages', 'qtfy' ),
 			'quote'            => __( 'Get a Quote', 'qtfy' ),

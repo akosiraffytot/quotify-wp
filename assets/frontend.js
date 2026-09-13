@@ -46,6 +46,40 @@
 		} );
 	}
 
+	function sealFluentCartButtonUrl( btn, variationId, baseUrl ) {
+		const url = new URL( baseUrl || window.location.origin );
+		url.searchParams.set( 'fluent-cart', 'modal_checkout' );
+		url.searchParams.set( 'item_id', String( variationId ) );
+		url.searchParams.set( 'quantity', '1' );
+
+		btn.href = url.toString();
+		btn.setAttribute( 'data-url', url.toString() );
+		btn.setAttribute( 'data-cart-id', String( variationId ) );
+	}
+
+	function setupFluentCartButtons() {
+		if ( ! config.instant_checkout || ! config.fluentcart_seed ) {
+			return;
+		}
+
+		document.querySelectorAll( '.quotify-fluentcart-wrap' ).forEach( function ( wrap ) {
+			if ( wrap.querySelector( 'a[data-fct-instant-checkout-button]' ) ) {
+				return;
+			}
+
+			const label = wrap.getAttribute( 'data-quotify-fluentcart-label' ) || config.quote || 'Get a Quote';
+			const btn   = document.createElement( 'a' );
+
+			btn.className = config.fluentcart_class || 'wp-block-button__link wp-element-button';
+			btn.textContent = label;
+			btn.setAttribute( 'data-fct-instant-checkout-button', '' );
+			btn.setAttribute( 'data-enable-modal-checkout', 'yes' );
+			sealFluentCartButtonUrl( btn, config.fluentcart_seed, config.fluentcart_home );
+
+			wrap.appendChild( btn );
+		} );
+	}
+
 	function revealFluentCart( data ) {
 		if ( ! config.instant_checkout || ! data.fluentcart_url ) {
 			return;
@@ -189,4 +223,10 @@
 			estimate( 0 );
 		} );
 	} );
+
+	if ( document.readyState === 'loading' ) {
+		document.addEventListener( 'DOMContentLoaded', setupFluentCartButtons );
+	} else {
+		setupFluentCartButtons();
+	}
 }() );
