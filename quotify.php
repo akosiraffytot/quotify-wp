@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.3.4
+ * Version:     1.3.5
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.3.4' );
+define( 'QUOTIFY_VERSION', '1.3.5' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -28,7 +28,8 @@ require_once QUOTIFY_PATH . 'includes/class-quotify-admin.php';
 require_once QUOTIFY_PATH . 'includes/class-quotify-sitemap.php';
 require_once QUOTIFY_PATH . 'includes/class-quotify-updater.php';
 
-if ( function_exists( 'add_action' ) ) {
+if ( function_exists( 'add_action' ) && ( is_admin() || wp_doing_cron() ) ) {
+	// Update checks only run in wp-admin; keep PUC off frontend/builder requests.
 	Quotify\Updater::init();
 }
 

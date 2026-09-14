@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.4
+Stable tag: 1.3.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.3.5 =
+* Load the GitHub update checker only in wp-admin/cron requests so it never runs on frontend or builder pages.
 
 = 1.3.4 =
 * Fix the PHP fatal error ("Cannot use output buffering in output buffering display handlers") that still occurred on instant-checkout pages. The FluentCart button is no longer rendered inline into the page content (where page builders run `WP_HTML_Tag_Processor` inside their own output-buffer handlers); Quotify now renders only an inert placeholder and builds the FluentCart button client-side.
