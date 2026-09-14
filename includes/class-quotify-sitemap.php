@@ -143,6 +143,7 @@ class Sitemap {
 	 * Statuses:
 	 * - ok:          unique page count (may be capped at the page limit)
 	 * - no_sitemap:  no candidate URL yielded URLs (missing/404/empty)
+	 * - robots_sitemap_404: robots.txt listed a sitemap URL that failed to load
 	 * - fetch_error: a candidate failed at the network level
 	 * - too_large:   a response exceeded the size limit
 	 * - processing:  another request owns the stampede lock
@@ -182,13 +183,16 @@ class Sitemap {
 
 		set_transient( $lock_key, 1, (int) $limits['lock_ttl'] );
 
+		$candidate_set = self::build_candidate_set( $root, $limits );
+		$from_robots   = $candidate_set['from_robots'];
+
 		$seen            = array();
 		$total           = 0;
 		$capped          = false;
 		$had_fetch_error = false;
 		$too_large       = false;
 
-		foreach ( self::build_candidates( $root, $limits ) as $candidate ) {
+		foreach ( $candidate_set['candidates'] as $candidate ) {
 			if ( $capped ) {
 				break;
 			}
@@ -228,6 +232,15 @@ class Sitemap {
 		}
 
 		// Not cached: only successful counts are kept for the cache lifetime.
+		if ( $from_robots && ! $had_fetch_error ) {
+			// robots.txt advertised a sitemap, but every listed URL failed.
+			return array(
+				'status' => 'robots_sitemap_404',
+				'count'  => null,
+				'capped' => false,
+			);
+		}
+
 		return array(
 			'status' => $had_fetch_error ? 'fetch_error' : 'no_sitemap',
 			'count'  => null,
@@ -246,10 +259,31 @@ class Sitemap {
 	 * @return array
 	 */
 	public static function build_candidates( string $url, ?array $limits = null ): array {
+		return self::build_candidate_set( $url, $limits )['candidates'];
+	}
+
+	/**
+	 * Candidate building with source metadata.
+	 *
+	 * Same candidate logic as {@see build_candidates()}, plus a
+	 * "from_robots" flag reporting whether the candidates came from
+	 * robots.txt "Sitemap:" lines.
+	 *
+	 * @param string     $url    Website URL.
+	 * @param array|null $limits Optional limits array (defaults when null).
+	 * @return array{
+	 *     candidates: string[],
+	 *     from_robots: bool,
+	 * }
+	 */
+	public static function build_candidate_set( string $url, ?array $limits = null ): array {
 		$root = self::normalize_root( $url );
 
 		if ( null === $root ) {
-			return array();
+			return array(
+				'candidates'  => array(),
+				'from_robots' => false,
+			);
 		}
 
 		$limits = $limits ?? self::get_limits();
@@ -260,7 +294,10 @@ class Sitemap {
 			$found = self::parse_robots_sitemaps( $robots['body'] );
 
 			if ( ! empty( $found ) ) {
-				return self::filter_candidates( $found, $root );
+				return array(
+					'candidates'  => self::filter_candidates( $found, $root ),
+					'from_robots' => true,
+				);
 			}
 		}
 
@@ -271,7 +308,10 @@ class Sitemap {
 			$abs[] = $root . $path;
 		}
 
-		return $abs;
+		return array(
+			'candidates'  => $abs,
+			'from_robots' => false,
+		);
 	}
 
 	/**
@@ -509,16 +549,6 @@ class Sitemap {
 			);
 		}
 
-		$code = (int) wp_remote_retrieve_response_code( $response );
-
-		if ( ! $code || 400 <= $code ) {
-			return array(
-				'ok'    => false,
-				'body'  => null,
-				'error' => 'not_found',
-			);
-		}
-
 		$body = (string) wp_remote_retrieve_body( $response );
 
 		if ( '' === $body ) {
@@ -545,11 +575,38 @@ class Sitemap {
 			}
 		}
 
+		$code = (int) wp_remote_retrieve_response_code( $response );
+
+		// Some hosts return the correct sitemap XML with a 4xx status
+		// (browsers render it regardless). Accept such bodies; the parsers
+		// still validate the document before any URL is counted.
+		if ( ! $code || ( 400 <= $code && ! self::looks_like_sitemap( $body ) ) ) {
+			return array(
+				'ok'    => false,
+				'body'  => null,
+				'error' => 'not_found',
+			);
+		}
+
 		return array(
 			'ok'    => true,
 			'body'  => $body,
 			'error' => null,
 		);
+	}
+
+	/**
+	 * Whether a response body is plausibly a sitemap document.
+	 *
+	 * Used to accept 4xx responses that still carry a valid sitemap body.
+	 * The returned body is still fully validated by the parsers before any
+	 * URLs are counted downstream.
+	 *
+	 * @param string $body Response body.
+	 * @return bool
+	 */
+	private static function looks_like_sitemap( string $body ): bool {
+		return false !== stripos( $body, '<sitemapindex' ) || false !== stripos( $body, '<urlset' );
 	}
 
 	/**

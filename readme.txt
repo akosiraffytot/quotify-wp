@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.5
+Stable tag: 1.3.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,10 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.3.6 =
+* Accept sitemap responses that arrive with a 4xx status when the body is valid sitemap XML — fixes "No XML sitemap was found" on hosts that serve wp-sitemap.xml content with a 404 status (which browsers still render).
+* Clearer message when robots.txt lists a sitemap URL but that URL fails to load.
 
 = 1.3.5 =
 * Load the GitHub update checker only in wp-admin/cron requests so it never runs on frontend or builder pages.

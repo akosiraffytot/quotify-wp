@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.3.5
+ * Version:     1.3.6
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.3.5' );
+define( 'QUOTIFY_VERSION', '1.3.6' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -351,10 +351,11 @@ function quotify_ajax_estimate(): void {
 
 	if ( 'ok' !== $result['status'] ) {
 		$messages = array(
-			'no_sitemap'  => __( 'No XML sitemap was found at that address.', 'qtfy' ),
-			'fetch_error' => __( 'Could not fetch the site. It may be slow or blocking requests.', 'qtfy' ),
-			'too_large'   => __( 'That website sitemap is too large to check.', 'qtfy' ),
-			'processing'  => __( 'Still working, please wait.', 'qtfy' ),
+			'no_sitemap'         => __( 'No XML sitemap was found at that address.', 'qtfy' ),
+			'robots_sitemap_404' => __( 'Your site lists a sitemap in robots.txt, but that URL could not be loaded.', 'qtfy' ),
+			'fetch_error'        => __( 'Could not fetch the site. It may be slow or blocking requests.', 'qtfy' ),
+			'too_large'          => __( 'That website sitemap is too large to check.', 'qtfy' ),
+			'processing'         => __( 'Still working, please wait.', 'qtfy' ),
 		);
 
 		wp_send_json_error(
