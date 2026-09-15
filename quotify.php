@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.3.7
+ * Version:     1.3.8
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.3.7' );
+define( 'QUOTIFY_VERSION', '1.3.8' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -45,7 +45,7 @@ function quotify_boot(): void {
 	add_shortcode( 'quotify_count', 'quotify_count_shortcode' );
 	add_shortcode( 'quotify_price', 'quotify_price_shortcode' );
 	add_shortcode( 'quotify_quote', 'quotify_quote_shortcode' );
-	add_action( 'wp_enqueue_scripts', 'quotify_enqueue_frontend_assets' );
+	add_action( 'wp_footer', 'quotify_enqueue_frontend_assets' );
 	add_action( 'wp_ajax_quotify_estimate', 'quotify_ajax_estimate' );
 	add_action( 'wp_ajax_nopriv_quotify_estimate', 'quotify_ajax_estimate' );
 }
@@ -63,15 +63,18 @@ if ( function_exists( 'add_action' ) ) {
  * @return string
  */
 function quotify_shortcode( $atts ): string {
+	$GLOBALS['quotify_shortcode_rendered'] = true;
+
 	$atts = shortcode_atts(
 		array(
-			'button'           => __( 'Estimate', 'qtfy' ),
-			'quote_label'      => __( 'Get a Quote', 'qtfy' ),
-			'show_pages'       => 1,
-			'show_price'       => 1,
-			'show_quote'       => 1,
-			'mode'             => 'all',
-			'instant_checkout' => '',
+			'button'            => __( 'Estimate', 'qtfy' ),
+			'quote_label'       => __( 'Get a Quote', 'qtfy' ),
+			'show_pages'        => 1,
+			'show_price'        => 1,
+			'show_quote'        => 1,
+			'mode'              => 'all',
+			'instant_checkout'  => '',
+			'force_load_assets' => '',
 		),
 		$atts,
 		'quotify'
@@ -149,7 +152,7 @@ function quotify_shortcode( $atts ): string {
 		}
 	}
 
-	return '<div class="quotify-tool">'
+	$form = '<div class="quotify-tool">'
 		. '<form class="quotify-form" novalidate>'
 		. '<label class="screen-reader-text" for="quotify-url">' . esc_html__( 'Website URL', 'qtfy' ) . '</label>'
 		. $hint_html
@@ -164,6 +167,26 @@ function quotify_shortcode( $atts ): string {
 		. '</div>'
 		. '</form>'
 		. '</div>';
+
+	if ( filter_var( $atts['force_load_assets'], FILTER_VALIDATE_BOOLEAN ) && empty( $GLOBALS['quotify_assets_embedded'] ) ) {
+		// Builder popups/wizards can render the shortcode after the footer
+		// enqueue pass already ran. force_load_assets embeds the asset tags
+		// directly in the output (after the form markup so the form parses
+		// before the script executes). No ob_start, so the output-buffering
+		// display-handler fatal stays impossible.
+		$GLOBALS['quotify_assets_embedded'] = true;
+		$config                             = quotify_get_frontend_config();
+		$css                                = QUOTIFY_URL . 'assets/frontend.css?ver=' . QUOTIFY_VERSION;
+		$js                                 = QUOTIFY_URL . 'assets/frontend.js?ver=' . QUOTIFY_VERSION;
+
+		// phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet, WordPress.WP.EnqueuedResources.NonEnqueuedScript -- Deliberate opt-in: the shortcode can render after the pipeline enqueue pass, so its own asset tags are emitted here.
+		$form .= '<link rel="stylesheet" id="quotify-frontend-css" href="' . esc_url( $css ) . '">'
+			. '<script id="quotify-frontend-js" src="' . esc_url( $js ) . '"></script>'
+			. '<script id="quotify-frontend-config">window.quotifyFront=' . wp_json_encode( $config ) . ';</script>';
+		// phpcs:enable
+	}
+
+	return $form;
 }
 
 /**
@@ -203,6 +226,28 @@ function quotify_mark_fluentcart(): void {
 }
 
 /**
+ * Static config array for frontend.js.
+ *
+ * Shared by both the wp_footer enqueue path and the force_load_assets
+ * embedded-tag path so the two stay identical.
+ *
+ * @return array
+ */
+function quotify_get_frontend_config(): array {
+	return array(
+		'ajaxurl'          => admin_url( 'admin-ajax.php' ),
+		'nonce'            => wp_create_nonce( 'quotify_estimate' ),
+		'fluentcart_home'  => home_url(),
+		'fluentcart_class' => 'wp-block-button__link wp-element-button',
+		/* translators: %s: page count. */
+		'pages'            => __( '%s pages', 'qtfy' ),
+		'quote'            => __( 'Get a Quote', 'qtfy' ),
+		'empty'            => __( 'Please enter a website URL.', 'qtfy' ),
+		'error'            => __( 'Something went wrong. Please try again.', 'qtfy' ),
+	);
+}
+
+/**
  * Shared renderer for the standalone [quotify_*] field shortcodes.
  *
  * @param array|string $atts  Shortcode attributes.
@@ -210,6 +255,8 @@ function quotify_mark_fluentcart(): void {
  * @return string
  */
 function quotify_field_shortcode( $atts, string $field ): string {
+	$GLOBALS['quotify_shortcode_rendered'] = true;
+
 	if ( 'quote' === $field && ! empty( $GLOBALS['quotify_instant_checkout'] ) ) {
 		$seed = quotify_get_fluentcart_seed();
 
@@ -272,32 +319,25 @@ function quotify_quote_shortcode( $atts ): string {
 }
 
 /**
- * Enqueue frontend assets.
+ * Enqueue frontend assets when the shortcode was rendered on this page.
  *
- * Loaded on every frontend page: the shortcode may render inside builder
- * popups or step wizards after wp_footer has fired, so gating on a render
- * flag is unreliable. The two asset files are small; a single extra request
- * is cheaper than a dead scanner in late-printed content.
+ * Skipped when force_load_assets already embedded the tags inline at
+ * shortcode-render time (that path emits external <link>/<script> tags in
+ * the returned output rather than using the WP enqueue pipeline).
  *
  * @return void
  */
 function quotify_enqueue_frontend_assets(): void {
+	if ( empty( $GLOBALS['quotify_shortcode_rendered'] ) || ! empty( $GLOBALS['quotify_assets_embedded'] ) ) {
+		return;
+	}
+
 	wp_enqueue_style( 'quotify-frontend', QUOTIFY_URL . 'assets/frontend.css', array(), QUOTIFY_VERSION );
 	wp_enqueue_script( 'quotify-frontend', QUOTIFY_URL . 'assets/frontend.js', array(), QUOTIFY_VERSION, true );
 	wp_localize_script(
 		'quotify-frontend',
 		'quotifyFront',
-		array(
-			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
-			'nonce'            => wp_create_nonce( 'quotify_estimate' ),
-			'fluentcart_home'  => home_url(),
-			'fluentcart_class' => 'wp-block-button__link wp-element-button',
-			/* translators: %s: page count. */
-			'pages'            => __( '%s pages', 'qtfy' ),
-			'quote'            => __( 'Get a Quote', 'qtfy' ),
-			'empty'            => __( 'Please enter a website URL.', 'qtfy' ),
-			'error'            => __( 'Something went wrong. Please try again.', 'qtfy' ),
-		)
+		quotify_get_frontend_config()
 	);
 }
 

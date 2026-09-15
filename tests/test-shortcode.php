@@ -44,6 +44,26 @@ function wp_parse_url( $url, $component = -1 ) {
 	return parse_url( $url, $component );
 }
 
+function esc_url( $url ) {
+	return $url;
+}
+
+function admin_url( $path = '' ) {
+	return 'http://example.test/wp-admin/' . ltrim( $path, '/' );
+}
+
+function wp_create_nonce( $action ) {
+	return 'test-nonce';
+}
+
+function home_url( $path = '' ) {
+	return 'http://example.test/' . ltrim( $path, '/' );
+}
+
+function wp_json_encode( $data, $options = 0 ) {
+	return json_encode( $data, $options | JSON_HEX_TAG | JSON_HEX_AMP );
+}
+
 $GLOBALS['__test_logged_in'] = false;
 $GLOBALS['__test_user_url'] = '';
 
@@ -133,6 +153,11 @@ check( 'standalone quote no fluentcart seed degrades to span', strpos( $html, 'd
 check( 'standalone quote no fluentcart wrap', strpos( $html, 'quotify-fluentcart-wrap' ), false );
 unset( $GLOBALS['quotify_instant_checkout'] );
 
+// 7. Field shortcodes flag the page for asset enqueueing.
+unset( $GLOBALS['quotify_shortcode_rendered'] );
+quotify_price_shortcode( array() );
+check( 'field sets enqueue flag', isset( $GLOBALS['quotify_shortcode_rendered'] ) && $GLOBALS['quotify_shortcode_rendered'], true );
+
 // 8. mode attribute: default/input ("all") render an editable field.
 $GLOBALS['__test_logged_in'] = false;
 $GLOBALS['__test_user_url'] = '';
@@ -173,5 +198,43 @@ check( 'user mode bad scheme hint shown', strpos( $html, 'quotify-profile-hint' 
 
 $GLOBALS['__test_logged_in'] = false;
 $GLOBALS['__test_user_url'] = '';
+
+// 12. force_load_assets embeds asset tags after the form markup.
+unset( $GLOBALS['quotify_assets_embedded'] );
+$forced = quotify_shortcode( array( 'force_load_assets' => 'yes' ) );
+check(
+	'force load css tag',
+	strpos( $forced, '<link rel="stylesheet" id="quotify-frontend-css" href="' . \QUOTIFY_URL . 'assets/frontend.css?ver=' . \QUOTIFY_VERSION . '">' ) !== false,
+	true
+);
+check(
+	'force load js tag',
+	strpos( $forced, '<script id="quotify-frontend-js" src="' . \QUOTIFY_URL . 'assets/frontend.js?ver=' . \QUOTIFY_VERSION . '"></script>' ) !== false,
+	true
+);
+check( 'force load config script', strpos( $forced, 'window.quotifyFront=' ) !== false, true );
+check( 'force load config carries nonce', strpos( $forced, 'test-nonce' ) !== false, true );
+$form_pos = strpos( $forced, 'class="quotify-form"' );
+$css_pos  = strpos( $forced, 'quotify-frontend-css' );
+check( 'force load assets after form', false !== $form_pos && false !== $css_pos && $css_pos > $form_pos, true );
+
+// Default (no attr) keeps the output asset-free.
+unset( $GLOBALS['quotify_assets_embedded'] );
+$plain = quotify_shortcode( array() );
+check( 'default no asset tags', strpos( $plain, 'id="quotify-frontend-js"' ), false );
+check( 'default no css tag', strpos( $plain, 'quotify-frontend-css' ), false );
+
+// false-y values do not embed.
+unset( $GLOBALS['quotify_assets_embedded'] );
+$off = quotify_shortcode( array( 'force_load_assets' => '0' ) );
+check( 'force load 0 no js tag', strpos( $off, 'id="quotify-frontend-js"' ), false );
+check( 'force load 0 no css tag', strpos( $off, 'quotify-frontend-css' ), false );
+
+// Embedded tags render exactly once across multiple forced instances.
+unset( $GLOBALS['quotify_assets_embedded'] );
+$first  = quotify_shortcode( array( 'force_load_assets' => '1' ) );
+$second = quotify_shortcode( array( 'force_load_assets' => 'yes' ) );
+check( 'force load embedded once overall', substr_count( $first . $second, 'id="quotify-frontend-js"' ), 1 );
+unset( $GLOBALS['quotify_assets_embedded'] );
 
 echo "ALL SHORTCODE TESTS PASSED\n";
