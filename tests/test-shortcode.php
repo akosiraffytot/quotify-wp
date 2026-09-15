@@ -217,6 +217,9 @@ check( 'force load config carries nonce', strpos( $forced, 'test-nonce' ) !== fa
 $form_pos = strpos( $forced, 'class="quotify-form"' );
 $css_pos  = strpos( $forced, 'quotify-frontend-css' );
 check( 'force load assets after form', false !== $form_pos && false !== $css_pos && $css_pos > $form_pos, true );
+$config_pos = strpos( $forced, 'window.quotifyFront=' );
+$js_pos     = strpos( $forced, 'id="quotify-frontend-js"' );
+check( 'force load config before JS', false !== $config_pos && false !== $js_pos && $config_pos < $js_pos, true );
 
 // Default (no attr) keeps the output asset-free.
 unset( $GLOBALS['quotify_assets_embedded'] );

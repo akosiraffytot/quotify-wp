@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.8
+Stable tag: 1.3.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.3.9 =
+* Fix: embedded asset tags in `force_load_assets` are now emitted in the correct order (config script before the main script) so the shortcode form works correctly.
 
 = 1.3.8 =
 * Frontend assets load only on pages using the plugin again (not every frontend page). For placements that render after the standard enqueue pass — e.g. inside builder popups or step wizards — add `force_load_assets="yes"` to the `[quotify]` shortcode so its styles/script are embedded with the form itself.

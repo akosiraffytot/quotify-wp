@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.3.8
+ * Version:     1.3.9
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.3.8' );
+define( 'QUOTIFY_VERSION', '1.3.9' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -181,8 +181,8 @@ function quotify_shortcode( $atts ): string {
 
 		// phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet, WordPress.WP.EnqueuedResources.NonEnqueuedScript -- Deliberate opt-in: the shortcode can render after the pipeline enqueue pass, so its own asset tags are emitted here.
 		$form .= '<link rel="stylesheet" id="quotify-frontend-css" href="' . esc_url( $css ) . '">'
-			. '<script id="quotify-frontend-js" src="' . esc_url( $js ) . '"></script>'
-			. '<script id="quotify-frontend-config">window.quotifyFront=' . wp_json_encode( $config ) . ';</script>';
+			. '<script id="quotify-frontend-config">window.quotifyFront=' . wp_json_encode( $config ) . ';</script>'
+			. '<script id="quotify-frontend-js" src="' . esc_url( $js ) . '"></script>';
 		// phpcs:enable
 	}
 
