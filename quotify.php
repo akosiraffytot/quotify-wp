@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.3.6
+ * Version:     1.3.7
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.3.6' );
+define( 'QUOTIFY_VERSION', '1.3.7' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -45,7 +45,7 @@ function quotify_boot(): void {
 	add_shortcode( 'quotify_count', 'quotify_count_shortcode' );
 	add_shortcode( 'quotify_price', 'quotify_price_shortcode' );
 	add_shortcode( 'quotify_quote', 'quotify_quote_shortcode' );
-	add_action( 'wp_footer', 'quotify_enqueue_frontend_assets' );
+	add_action( 'wp_enqueue_scripts', 'quotify_enqueue_frontend_assets' );
 	add_action( 'wp_ajax_quotify_estimate', 'quotify_ajax_estimate' );
 	add_action( 'wp_ajax_nopriv_quotify_estimate', 'quotify_ajax_estimate' );
 }
@@ -63,8 +63,6 @@ if ( function_exists( 'add_action' ) ) {
  * @return string
  */
 function quotify_shortcode( $atts ): string {
-	$GLOBALS['quotify_shortcode_rendered'] = true;
-
 	$atts = shortcode_atts(
 		array(
 			'button'           => __( 'Estimate', 'qtfy' ),
@@ -145,7 +143,7 @@ function quotify_shortcode( $atts ): string {
 			 * handlers" fatal there. Render only an inert placeholder; the
 			 * frontend builds the real button with JS.
 			 */
-			$quote_html = '<div class="quotify-fluentcart-wrap" style="display:none" data-quotify-fluentcart-label="' . esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $atts['quote_label'] ) ) . '"></div>';
+			$quote_html = '<div class="quotify-fluentcart-wrap" style="display:none" data-quotify-fluentcart-seed="' . esc_attr( $fluentcart_seed ) . '" data-quotify-fluentcart-label="' . esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $atts['quote_label'] ) ) . '"></div>';
 		} else {
 			$quote_html = '<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="' . esc_attr( $atts['quote_label'] ) . '"></span>';
 		}
@@ -212,8 +210,6 @@ function quotify_mark_fluentcart(): void {
  * @return string
  */
 function quotify_field_shortcode( $atts, string $field ): string {
-	$GLOBALS['quotify_shortcode_rendered'] = true;
-
 	if ( 'quote' === $field && ! empty( $GLOBALS['quotify_instant_checkout'] ) ) {
 		$seed = quotify_get_fluentcart_seed();
 
@@ -224,7 +220,7 @@ function quotify_field_shortcode( $atts, string $field ): string {
 
 			// Inert placeholder only; the frontend builds the real button via
 			// JS so content processors never see FluentCart's anchor markup.
-			return '<div class="quotify-fluentcart-wrap" style="display:none" data-quotify-fluentcart-label="' . esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $label ) ) . '"></div>';
+			return '<div class="quotify-fluentcart-wrap" style="display:none" data-quotify-fluentcart-seed="' . esc_attr( $seed ) . '" data-quotify-fluentcart-label="' . esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $label ) ) . '"></div>';
 		}
 	}
 
@@ -276,15 +272,16 @@ function quotify_quote_shortcode( $atts ): string {
 }
 
 /**
- * Enqueue frontend assets when the shortcode was rendered.
+ * Enqueue frontend assets.
+ *
+ * Loaded on every frontend page: the shortcode may render inside builder
+ * popups or step wizards after wp_footer has fired, so gating on a render
+ * flag is unreliable. The two asset files are small; a single extra request
+ * is cheaper than a dead scanner in late-printed content.
  *
  * @return void
  */
 function quotify_enqueue_frontend_assets(): void {
-	if ( empty( $GLOBALS['quotify_shortcode_rendered'] ) ) {
-		return;
-	}
-
 	wp_enqueue_style( 'quotify-frontend', QUOTIFY_URL . 'assets/frontend.css', array(), QUOTIFY_VERSION );
 	wp_enqueue_script( 'quotify-frontend', QUOTIFY_URL . 'assets/frontend.js', array(), QUOTIFY_VERSION, true );
 	wp_localize_script(
@@ -293,8 +290,6 @@ function quotify_enqueue_frontend_assets(): void {
 		array(
 			'ajaxurl'          => admin_url( 'admin-ajax.php' ),
 			'nonce'            => wp_create_nonce( 'quotify_estimate' ),
-			'instant_checkout' => ! empty( $GLOBALS['quotify_instant_checkout'] ),
-			'fluentcart_seed'  => ! empty( $GLOBALS['quotify_instant_checkout'] ) ? (int) quotify_get_fluentcart_seed() : '',
 			'fluentcart_home'  => home_url(),
 			'fluentcart_class' => 'wp-block-button__link wp-element-button',
 			/* translators: %s: page count. */

@@ -58,15 +58,12 @@
 	}
 
 	function setupFluentCartButtons() {
-		if ( ! config.instant_checkout || ! config.fluentcart_seed ) {
-			return;
-		}
-
-		document.querySelectorAll( '.quotify-fluentcart-wrap' ).forEach( function ( wrap ) {
+		document.querySelectorAll( '.quotify-fluentcart-wrap[data-quotify-fluentcart-seed]' ).forEach( function ( wrap ) {
 			if ( wrap.querySelector( 'a[data-fct-instant-checkout-button]' ) ) {
 				return;
 			}
 
+			const seed  = wrap.getAttribute( 'data-quotify-fluentcart-seed' );
 			const label = wrap.getAttribute( 'data-quotify-fluentcart-label' ) || config.quote || 'Get a Quote';
 			const btn   = document.createElement( 'a' );
 
@@ -74,14 +71,14 @@
 			btn.textContent = label;
 			btn.setAttribute( 'data-fct-instant-checkout-button', '' );
 			btn.setAttribute( 'data-enable-modal-checkout', 'yes' );
-			sealFluentCartButtonUrl( btn, config.fluentcart_seed, config.fluentcart_home );
+			sealFluentCartButtonUrl( btn, seed, config.fluentcart_home );
 
 			wrap.appendChild( btn );
 		} );
 	}
 
 	function revealFluentCart( data ) {
-		if ( ! config.instant_checkout || ! data.fluentcart_url ) {
+		if ( ! data.fluentcart_url || ! document.querySelector( '.quotify-fluentcart-wrap[data-quotify-fluentcart-seed]' ) ) {
 			return;
 		}
 
@@ -169,7 +166,7 @@
 			body.append( 'action', 'quotify_estimate' );
 			body.append( 'nonce', config.nonce );
 			body.append( 'url', urlInput.value.trim() );
-			body.append( 'instant_checkout', config.instant_checkout ? '1' : '' );
+			body.append( 'instant_checkout', document.querySelector( '.quotify-fluentcart-wrap[data-quotify-fluentcart-seed]' ) ? '1' : '' );
 
 			fetch( config.ajaxurl, {
 				method: 'POST',

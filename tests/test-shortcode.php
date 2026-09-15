@@ -133,11 +133,6 @@ check( 'standalone quote no fluentcart seed degrades to span', strpos( $html, 'd
 check( 'standalone quote no fluentcart wrap', strpos( $html, 'quotify-fluentcart-wrap' ), false );
 unset( $GLOBALS['quotify_instant_checkout'] );
 
-// 7. Field shortcodes flag the page for asset enqueueing.
-unset( $GLOBALS['quotify_shortcode_rendered'] );
-quotify_price_shortcode( array() );
-check( 'field sets enqueue flag', isset( $GLOBALS['quotify_shortcode_rendered'] ) && $GLOBALS['quotify_shortcode_rendered'], true );
-
 // 8. mode attribute: default/input ("all") render an editable field.
 $GLOBALS['__test_logged_in'] = false;
 $GLOBALS['__test_user_url'] = '';
