@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.9
+Stable tag: 1.3.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.3.10 =
+* New `quotify:scanned` and `quotify:error` browser events: after a successful estimate or a failed one, the plugin dispatches a custom DOM event on `document` carrying the result (`page_count`, `price`, `checkout_url`, etc.) or the error code/message — hook into it with `addEventListener` to reveal elements, log, animate or chain actions.
 
 = 1.3.9 =
 * Fix: embedded asset tags in `force_load_assets` are now emitted in the correct order (config script before the main script) so the shortcode form works correctly.

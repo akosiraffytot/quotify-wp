@@ -181,6 +181,7 @@
 						finish( false );
 						fillAllFields( response.data );
 						revealFluentCart( response.data );
+						document.dispatchEvent( new CustomEvent( 'quotify:scanned', { detail: response.data } ) );
 						return;
 					}
 
@@ -195,9 +196,11 @@
 					}
 
 					finish( message );
+					document.dispatchEvent( new CustomEvent( 'quotify:error', { detail: { code: code, message: message } } ) );
 				} )
 				.catch( function () {
 					finish( config.error );
+					document.dispatchEvent( new CustomEvent( 'quotify:error', { detail: { code: 'network', message: config.error } } ) );
 				} );
 		}
 
