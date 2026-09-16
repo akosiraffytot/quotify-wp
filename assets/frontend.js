@@ -89,6 +89,10 @@
 				return;
 			}
 
+			if ( data.quote_label ) {
+				btn.textContent = data.quote_label;
+			}
+
 			btn.href = data.fluentcart_url;
 			btn.setAttribute( 'data-url', data.fluentcart_url );
 			btn.setAttribute( 'data-cart-id', data.fluentcart_variation_id || '' );
@@ -103,7 +107,7 @@
 			return;
 		}
 
-		const label       = getQuoteLabel( slot );
+		const label       = data.quote_label || getQuoteLabel( slot );
 		const placeholder = getPlaceholder( slot );
 		const link        = document.createElement( 'a' );
 

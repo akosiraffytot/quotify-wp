@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -45,6 +45,14 @@ Place any result separately anywhere on the page — for example a "You have X p
 
 Each accepts a `placeholder` attribute (e.g. `[quotify_count placeholder="--"]`). Results fill in live when the visitor runs an estimate; other spots on the page fill with the same values. When `instant_checkout="yes"` is active on `[quotify]`, a `[quotify_quote]` field on the same page renders the FluentCart modal-checkout button too — so you can hide the inline quote (`show_quote="0"`) and place only the button elsewhere.
 
+Display the right checkout button for the logged-in user's saved scan anywhere (no form, no AJAX) with:
+
+`[quotify_fluentcart_checkout label="Get my quote"]`
+
+It matches the saved page count to a tier and renders the FluentCart instant-modal button (tier has a Variation ID) or a link to the tier's Checkout URL; for a **Custom quote** tier that URL is used verbatim, so `mailto:`, `tel:` and relative links work.
+
+Tiers can be marked **Custom quote** in Tools > Quotify: no fixed price is shown (visitors see a contact-us message instead of a dollar amount), and each such tier gets its own **Button label**.
+
 ### Logged-in visitors: saved scan data
 
 When a logged-in visitor runs a successful estimate, Quotify saves the page count, the scan date/time and the scanned URL to their profile (latest scan only — each new success overwrites the previous). Read-only fields appear under **Latest Quotify scan** on the WordPress profile page.
@@ -76,13 +84,17 @@ Quotify counts every sitemap listed in the target's robots.txt — so on a multi
 
 = The price shows "Contact us for a custom quote." — why? =
 
-Page counts above your last tier are matched to the open-ended bracket. When that bracket has no fixed price, Quotify shows the contact-us label and leaves the quote link off. Define a price on the last tier in Tools > Quotify to always return a checkout link.
+That tier is marked **Custom quote** in Tools > Quotify (or the count falls outside every tier), so Quotify shows the custom-quote message instead of a fixed price and links the quote button to the tier's own Checkout URL / Variation ID. To always return a fixed price and an automatic checkout link, uncheck **Custom quote** and set a price on that tier.
 
 = Do visitors need an account or login? =
 
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.6.0 =
+* New per-tier **Custom quote** option in Tools > Quotify: a tier without a fixed price. Visitors see the custom-quote message instead of a price, and the button targets the tier's own Variation ID (FluentCart instant modal) or Checkout URL (used verbatim — supports `mailto:`/`tel:`/relative links) with a per-tier **Button label**.
+* New `[quotify_fluentcart_checkout]` shortcode: renders the correct checkout button for the logged-in user's *saved* scan — server-rendered, no form or AJAX. FluentCart variation ID + active plugin yields the instant modal button; otherwise the tier's Checkout URL becomes a link.
 
 = 1.5.0 =
 * Bricks Builder integration: two new dynamic data tags — `{quotify_page_count}` (the logged-in visitor's saved page count) and `{quotify_price}` (the price computed from your Tools > Quotify tiers). Pick them from the Dynamic Data dropdown under the **Quotify** group in any text element.

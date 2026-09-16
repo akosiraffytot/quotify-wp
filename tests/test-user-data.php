@@ -93,6 +93,30 @@ function get_user_meta( $user_id, $key, $single = false ) {
 	return $GLOBALS['__user_meta'][ $user_id ][ $key ] ?? '';
 }
 
+function home_url( $path = '' ) {
+	return 'http://unit.test/' . ltrim( $path, '/' );
+}
+
+function esc_url( $url ) {
+	return $url;
+}
+
+function admin_url( $path = '' ) {
+	return 'http://unit.test/wp-admin/' . ltrim( $path, '/' );
+}
+
+function wp_create_nonce( $action = '' ) {
+	return 'test-nonce';
+}
+
+function wp_json_encode( $data, $options = 0 ) {
+	return json_encode( $data, $options | JSON_HEX_TAG | JSON_HEX_AMP );
+}
+
+function absint( $value ) {
+	return abs( (int) $value );
+}
+
 require __DIR__ . '/../quotify.php';
 
 function check( $label, $actual, $expected ) {
@@ -165,7 +189,7 @@ check( 'saved shortcode sets no enqueue flag', isset( $GLOBALS['quotify_shortcod
 // 9. The shortcode reference (doc/doc.html) documents every shortcode.
 $reference = file_get_contents( __DIR__ . '/../doc/doc.html' );
 check( 'reference file exists', false !== $reference, true );
-foreach ( array( 'quotify', 'quotify_count', 'quotify_price', 'quotify_quote', 'quotify_saved_count', 'quotify_saved_scanned', 'quotify_saved_url' ) as $tag ) {
+foreach ( array( 'quotify', 'quotify_count', 'quotify_price', 'quotify_quote', 'quotify_saved_count', 'quotify_saved_scanned', 'quotify_saved_url', 'quotify_fluentcart_checkout' ) as $tag ) {
 	check( "reference documents [{$tag}]", false !== strpos( (string) $reference, "[{$tag}]" ), true );
 }
 
@@ -199,5 +223,110 @@ $content = '<p>{the_title}</p>';
 check( 'bricks content no tag untouched', Quotify\Bricks::render_content( $content, null, 'text' ), $content );
 $content = '<p>{quotify_page_count} pages — {quotify_price}</p>';
 check( 'bricks content replaces tags', Quotify\Bricks::render_content( $content, null, 'text' ), '<p>5,001 pages — $450</p>' );
+
+// 11. [quotify_fluentcart_checkout]: server-rendered button from the saved scan.
+$GLOBALS['__logged_in'] = false;
+$GLOBALS['__current_user_id'] = 7;
+check( 'fc logged out empty', quotify_fluentcart_checkout_shortcode( array() ), '' );
+$GLOBALS['__logged_in'] = true;
+
+// No saved scan -> empty.
+$GLOBALS['__current_user_id'] = 8;
+check( 'fc no scan empty', quotify_fluentcart_checkout_shortcode( array() ), '' );
+$GLOBALS['__current_user_id'] = 7;
+quotify_save_scan_meta( 7, 2500, 1234567890, 'https://example.test/' );
+
+// Custom-quote tier with a per-tier label + mailto URL -> verbatim link.
+$GLOBALS['__settings'] = array(
+	'tiers' => array(
+		array(
+			'min'          => 1,
+			'max'          => 5000,
+			'price'        => 120.0,
+			'variation_id' => '',
+			'url'          => '',
+			'custom_quote' => false,
+			'button_label' => '',
+		),
+		array(
+			'min'          => 5001,
+			'max'          => '',
+			'price'        => 0.0,
+			'variation_id' => '',
+			'url'          => 'mailto:quote@site.test',
+			'custom_quote' => true,
+			'button_label' => 'Email Us',
+		),
+	),
+);
+$html = quotify_fluentcart_checkout_shortcode( array() );
+check( 'fc no custom-quote count empty', $html, '' );
+
+quotify_save_scan_meta( 7, 5001, 1234567890, 'https://example.test/' );
+$html = quotify_fluentcart_checkout_shortcode( array() );
+check( 'fc custom-quote mailto link', $html, '<a class="quotify-quote-link" href="mailto:quote@site.test" rel="noopener">Email Us</a>' );
+
+// Shortcode label attr falls back when the tier label is empty.
+$GLOBALS['__settings'] = array(
+	'tiers' => array(
+		array(
+			'min'          => 1,
+			'max'          => '',
+			'price'        => 120.0,
+			'variation_id' => '',
+			'url'          => 'https://checkout.site/?t={total_price}',
+			'custom_quote' => false,
+			'button_label' => '',
+		),
+	),
+);
+quotify_save_scan_meta( 7, 100, 1234567890, 'https://example.test/' );
+$html = quotify_fluentcart_checkout_shortcode( array( 'label' => 'Go' ) );
+check( 'fc label attr fallback', strpos( $html, '>Go</a>' ) !== false, true );
+
+// force_load_assets appends the embedded asset tags after the button.
+$GLOBALS['__settings'] = array(
+	'tiers' => array(
+		array(
+			'min'          => 1,
+			'max'          => '',
+			'price'        => 120.0,
+			'variation_id' => '',
+			'url'          => 'https://checkout.site/?p={page_count}&t={total_price}',
+			'custom_quote' => false,
+			'button_label' => '',
+		),
+	),
+);
+quotify_save_scan_meta( 7, 5000, 1234567890, 'https://example.test/' );
+unset( $GLOBALS['quotify_assets_embedded'] );
+$forced = quotify_fluentcart_checkout_shortcode( array( 'force_load_assets' => 'yes' ) );
+check( 'fc link tokens', strpos( $forced, 'href="https://checkout.site/?p=5000&t=120"' ) !== false, true );
+check( 'fc label default', strpos( $forced, 'rel="noopener">Get a Quote</a>' ) !== false, true );
+check( 'fc embeds js tag', strpos( $forced, 'id="quotify-frontend-js"' ) !== false, true );
+check( 'fc embeds config', strpos( $forced, 'window.quotifyFront=' ) !== false, true );
+check( 'fc bold price', substr_count( $forced, 'id="quotify-frontend-js"' ), 1 );
+
+// Custom-quote tier with a variation_id + FluentCart stub -> modal wrap.
+$GLOBALS['__settings'] = array(
+	'tiers' => array(
+		array(
+			'min'          => 1,
+			'max'          => '',
+			'price'        => 0.0,
+			'variation_id' => 113,
+			'url'          => '',
+			'custom_quote' => true,
+			'button_label' => 'Buy Now',
+		),
+	),
+);
+quotify_save_scan_meta( 7, 2500, 1234567890, 'https://example.test/' );
+eval( 'namespace FluentCart\App\Hooks\Handlers\ShortCodes\Buttons { class DirectCheckoutShortcode {} }' );
+unset( $GLOBALS['quotify_assets_embedded'] );
+$modal = quotify_fluentcart_checkout_shortcode( array() );
+check( 'fc modal seed', strpos( $modal, 'data-quotify-fluentcart-seed="113"' ) !== false, true );
+check( 'fc modal label', strpos( $modal, 'data-quotify-fluentcart-label="Buy Now"' ) !== false, true );
+check( 'fc modal visible', strpos( $modal, 'display:none' ), false );
 
 echo "ALL USER-DATA TESTS PASSED\n";

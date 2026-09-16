@@ -7,7 +7,7 @@
 
 define( 'ABSPATH', 'C:/tmp/' );
 define( 'QUOTIFY_URL', 'http://unit.test/wp-content/plugins/quotify/' );
-define( 'QUOTIFY_VERSION', '1.5.0' );
+define( 'QUOTIFY_VERSION', '1.6.0' );
 
 function number_format_i18n( $number, $decimals = 0 ) {
 	return number_format( $number, $decimals );
@@ -129,5 +129,16 @@ check(
 	Admin::build_checkout_url( 10, 120.0, 'https://tier.com/?site={site}', 'https://bikes.example' ),
 	'https://tier.com/?site=https://bikes.example'
 );
+
+// Custom-quote tiers: matched normally, but their price is always null so
+// the frontend shows the contact-us fallback instead of a fixed figure.
+$custom_tiers = array(
+	array( 'min' => 0,   'max' => '50', 'price' => 120.0, 'custom_quote' => false, 'button_label' => '' ),
+	array( 'min' => 51,  'max' => '',   'price' => 0.0,   'custom_quote' => true,  'button_label' => 'Email Us' ),
+);
+check( 'custom quote matched', Admin::match_tier( 5000, $custom_tiers )['custom_quote'], true );
+check( 'custom quote label kept', Admin::match_tier( 5000, $custom_tiers )['button_label'], 'Email Us' );
+check( 'custom quote no price', Admin::get_price( 5000, $custom_tiers ), null );
+check( 'fixed tier still priced', Admin::get_price( 10, $custom_tiers ), 120.0 );
 
 echo "ALL PRICING TESTS PASSED\n";

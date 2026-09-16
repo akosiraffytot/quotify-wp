@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.5.0
+ * Version:     1.6.0
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.5.0' );
+define( 'QUOTIFY_VERSION', '1.6.0' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -50,6 +50,7 @@ function quotify_boot(): void {
 	add_shortcode( 'quotify_saved_count', 'quotify_saved_count_shortcode' );
 	add_shortcode( 'quotify_saved_scanned', 'quotify_saved_scanned_shortcode' );
 	add_shortcode( 'quotify_saved_url', 'quotify_saved_url_shortcode' );
+	add_shortcode( 'quotify_fluentcart_checkout', 'quotify_fluentcart_checkout_shortcode' );
 	add_action( 'wp_footer', 'quotify_enqueue_frontend_assets' );
 	add_action( 'wp_ajax_quotify_estimate', 'quotify_ajax_estimate' );
 	add_action( 'wp_ajax_nopriv_quotify_estimate', 'quotify_ajax_estimate' );
@@ -151,7 +152,7 @@ function quotify_shortcode( $atts ): string {
 			 * handlers" fatal there. Render only an inert placeholder; the
 			 * frontend builds the real button with JS.
 			 */
-			$quote_html = '<div class="quotify-fluentcart-wrap" style="display:none" data-quotify-fluentcart-seed="' . esc_attr( $fluentcart_seed ) . '" data-quotify-fluentcart-label="' . esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $atts['quote_label'] ) ) . '"></div>';
+			$quote_html = quotify_fluentcart_wrap_html( $fluentcart_seed, $atts['quote_label'] );
 		} else {
 			$quote_html = '<span class="quotify-field quotify-quote-link" data-quotify-field="quote" data-quotify-quote-label="' . esc_attr( $atts['quote_label'] ) . '"></span>';
 		}
@@ -173,25 +174,178 @@ function quotify_shortcode( $atts ): string {
 		. '</form>'
 		. '</div>';
 
-	if ( filter_var( $atts['force_load_assets'], FILTER_VALIDATE_BOOLEAN ) && empty( $GLOBALS['quotify_assets_embedded'] ) ) {
+	if ( filter_var( $atts['force_load_assets'], FILTER_VALIDATE_BOOLEAN ) ) {
 		// Builder popups/wizards can render the shortcode after the footer
 		// enqueue pass already ran. force_load_assets embeds the asset tags
 		// directly in the output (after the form markup so the form parses
 		// before the script executes). No ob_start, so the output-buffering
 		// display-handler fatal stays impossible.
-		$GLOBALS['quotify_assets_embedded'] = true;
-		$config                             = quotify_get_frontend_config();
-		$css                                = QUOTIFY_URL . 'assets/frontend.css?ver=' . QUOTIFY_VERSION;
-		$js                                 = QUOTIFY_URL . 'assets/frontend.js?ver=' . QUOTIFY_VERSION;
-
-		// phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet, WordPress.WP.EnqueuedResources.NonEnqueuedScript -- Deliberate opt-in: the shortcode can render after the pipeline enqueue pass, so its own asset tags are emitted here.
-		$form .= '<link rel="stylesheet" id="quotify-frontend-css" href="' . esc_url( $css ) . '">'
-			. '<script id="quotify-frontend-config">window.quotifyFront=' . wp_json_encode( $config ) . ';</script>'
-			. '<script id="quotify-frontend-js" src="' . esc_url( $js ) . '"></script>';
-		// phpcs:enable
+		$form .= quotify_embedded_assets();
 	}
 
 	return $form;
+}
+
+/**
+ * Inert FluentCart seed wrapper: the frontend builds the real modal-checkout
+ * anchor inside it via JS, so content processors never see FluentCart's
+ * anchor markup (avoids the output-buffering shorthand fatal).
+ *
+ * @param string $variation_id FluentCart variation ID to seed.
+ * @param string $label        Button label.
+ * @param bool   $hidden       Hide until an estimate reveals it.
+ * @return string
+ */
+function quotify_fluentcart_wrap_html( string $variation_id, string $label, bool $hidden = true ): string {
+	$style = $hidden ? ' style="display:none"' : '';
+
+	return '<div class="quotify-fluentcart-wrap"' . $style . ' data-quotify-fluentcart-seed="' . esc_attr( $variation_id ) . '" data-quotify-fluentcart-label="' . esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $label ) ) . '"></div>';
+}
+
+/**
+ * Embedded frontend asset tags (CSS + inline config + JS), emitted at most
+ * once per page, for placements that render after the enqueue pass.
+ *
+ * @return string
+ */
+function quotify_embedded_assets(): string {
+	if ( ! empty( $GLOBALS['quotify_assets_embedded'] ) ) {
+		return '';
+	}
+
+	$GLOBALS['quotify_assets_embedded'] = true;
+	$config                             = quotify_get_frontend_config();
+	$css                                = QUOTIFY_URL . 'assets/frontend.css?ver=' . QUOTIFY_VERSION;
+	$js                                 = QUOTIFY_URL . 'assets/frontend.js?ver=' . QUOTIFY_VERSION;
+
+	// phpcs:disable WordPress.WP.EnqueuedResources.NonEnqueuedStylesheet, WordPress.WP.EnqueuedResources.NonEnqueuedScript -- Deliberate opt-in: late-rendered placements get their own asset tags.
+	return '<link rel="stylesheet" id="quotify-frontend-css" href="' . esc_url( $css ) . '">'
+		. '<script id="quotify-frontend-config">window.quotifyFront=' . wp_json_encode( $config ) . ';</script>'
+		. '<script id="quotify-frontend-js" src="' . esc_url( $js ) . '"></script>';
+	// phpcs:enable
+}
+
+/**
+ * Loose URL guard for custom-quote button targets: allows http(s), mailto,
+ * tel and relative ("/…") links, rejecting anything else (js:, data:, …).
+ *
+ * @param string $url Candidate URL.
+ * @return bool
+ */
+function quotify_is_loose_url( string $url ): bool {
+	if ( '' === $url ) {
+		return false;
+	}
+
+	if ( 0 === strpos( $url, '/' ) || 0 === strpos( $url, './' ) ) {
+		return true;
+	}
+
+	foreach ( array( 'http://', 'https://', 'mailto:', 'tel:' ) as $prefix ) {
+		if ( 0 === strpos( $url, $prefix ) ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * HTTP(S) scheme guard for checkout URLs.
+ *
+ * @param string $url Candidate URL.
+ * @return bool
+ */
+function quotify_is_https_url( string $url ): bool {
+	return 0 === strpos( $url, 'http://' ) || 0 === strpos( $url, 'https://' );
+}
+
+/**
+ * [quotify_fluentcart_checkout] shortcode: current user's saved scan matched
+ * to its pricing tier, rendered as the correct checkout button.
+ *
+ * Variation ID + FluentCart active -> the instant modal button. Otherwise the
+ * tier's Checkout URL (verbatim for custom-quote tiers, token-substituted for
+ * priced tiers) as a plain link. Server-rendered, no AJAX.
+ *
+ * @param array|string $atts Shortcode attributes: label, force_load_assets.
+ * @return string
+ */
+function quotify_fluentcart_checkout_shortcode( $atts ): string {
+	if ( ! is_user_logged_in() ) {
+		return '';
+	}
+
+	$saved = quotify_get_saved_scan( get_current_user_id() );
+
+	if ( $saved['count'] <= 0 ) {
+		return '';
+	}
+
+	$atts = shortcode_atts(
+		array(
+			'label'             => '',
+			'force_load_assets' => '',
+		),
+		$atts,
+		'quotify_fluentcart_checkout'
+	);
+
+	$settings = Quotify\Admin::get_settings();
+	$tier     = Quotify\Admin::match_tier( $saved['count'], $settings['tiers'] );
+
+	if ( ! $tier ) {
+		return '';
+	}
+
+	$custom_quote = ! empty( $tier['custom_quote'] );
+	$label        = '' !== (string) ( $tier['button_label'] ?? '' ) ? (string) $tier['button_label'] : ( '' !== $atts['label'] ? $atts['label'] : __( 'Get a Quote', 'qtfy' ) );
+
+	$GLOBALS['quotify_shortcode_rendered'] = true;
+
+	// FluentCart active + a variation ID -> instant modal button (client-built).
+	if ( class_exists( 'FluentCart\App\Hooks\Handlers\ShortCodes\Buttons\DirectCheckoutShortcode' ) && ! empty( $tier['variation_id'] ) ) {
+		quotify_mark_fluentcart();
+
+		$html = quotify_fluentcart_wrap_html( (string) absint( $tier['variation_id'] ), $label, false );
+
+		if ( filter_var( $atts['force_load_assets'], FILTER_VALIDATE_BOOLEAN ) ) {
+			$html .= quotify_embedded_assets();
+		}
+
+		return $html;
+	}
+
+	$tier_url = (string) ( $tier['url'] ?? '' );
+
+	if ( $custom_quote ) {
+		if ( '' === $tier_url || ! quotify_is_loose_url( $tier_url ) ) {
+			return '';
+		}
+
+		$href = $tier_url;
+	} else {
+		$price = Quotify\Admin::get_price( $saved['count'], $settings['tiers'] );
+
+		if ( null === $price ) {
+			return '';
+		}
+
+		$template = '' !== $tier_url ? $tier_url : $settings['checkout_url'];
+		$href     = Quotify\Admin::build_checkout_url( $saved['count'], $price, $template, home_url() );
+
+		if ( ! quotify_is_https_url( $href ) ) {
+			return '';
+		}
+	}
+
+	$html = '<a class="quotify-quote-link" href="' . esc_url( $href ) . '" rel="noopener">' . esc_html( $label ) . '</a>';
+
+	if ( filter_var( $atts['force_load_assets'], FILTER_VALIDATE_BOOLEAN ) ) {
+		$html .= quotify_embedded_assets();
+	}
+
+	return $html;
 }
 
 /**
@@ -272,7 +426,7 @@ function quotify_field_shortcode( $atts, string $field ): string {
 
 			// Inert placeholder only; the frontend builds the real button via
 			// JS so content processors never see FluentCart's anchor markup.
-			return '<div class="quotify-fluentcart-wrap" style="display:none" data-quotify-fluentcart-seed="' . esc_attr( $seed ) . '" data-quotify-fluentcart-label="' . esc_attr( str_replace( array( '"', "'", '[', ']' ), '', $label ) ) . '"></div>';
+			return quotify_fluentcart_wrap_html( $seed, $label );
 		}
 	}
 
@@ -510,17 +664,43 @@ function quotify_ajax_estimate(): void {
 
 	$settings = Quotify\Admin::get_settings();
 	$tier     = Quotify\Admin::match_tier( $result['count'], $settings['tiers'] );
-	$price    = $tier ? (float) $tier['price'] : null;
+
+	// Custom-quote tiers have no fixed price: price is null everywhere, and
+	// the button target comes from the tier's own Variation ID / Checkout URL.
+	$custom_quote = $tier && ! empty( $tier['custom_quote'] );
+	$price        = ( $tier && ! $custom_quote ) ? (float) $tier['price'] : null;
 
 	// Save the latest successful scan to the logged-in user's profile.
 	if ( is_user_logged_in() ) {
 		quotify_save_scan_meta( get_current_user_id(), $result['count'], time(), $url );
 	}
 
-	// Instant checkout drives the button from the tier's FluentCart variation
-	// ID; the Checkout URL template is ignored entirely for this flow.
+	$quote_label    = '';
 	$fluentcart_url = '';
-	if ( $instant_checkout ) {
+	$checkout       = '';
+
+	if ( $custom_quote ) {
+		// Button label comes from the per-tier field (falling back to the
+		// default quote label so the shortcode attr still applies where set).
+		$quote_label = '' !== (string) ( $tier['button_label'] ?? '' ) ? (string) $tier['button_label'] : __( 'Get a Quote', 'qtfy' );
+
+		// Instant-checkout modal wins when a variation ID is set; otherwise
+		// the tier's Checkout URL becomes a verbatim contact link.
+		if ( ! empty( $tier['variation_id'] ) ) {
+			$fluentcart_url = add_query_arg(
+				array(
+					'fluent-cart' => 'modal_checkout',
+					'item_id'     => absint( $tier['variation_id'] ),
+					'quantity'    => 1,
+				),
+				home_url()
+			);
+		} elseif ( ! empty( $tier['url'] ) && quotify_is_loose_url( $tier['url'] ) ) {
+			$checkout = $tier['url'];
+		}
+	} elseif ( $instant_checkout ) {
+		// Instant checkout drives the button from the tier's FluentCart
+		// variation ID; the Checkout URL template is ignored entirely here.
 		if ( $tier && ! empty( $tier['variation_id'] ) ) {
 			$fluentcart_url = add_query_arg(
 				array(
@@ -536,7 +716,7 @@ function quotify_ajax_estimate(): void {
 		$template = ( $tier && ! empty( $tier['url'] ) ) ? $tier['url'] : $settings['checkout_url'];
 		$site     = home_url();
 		$checkout = null !== $price ? Quotify\Admin::build_checkout_url( $result['count'], $price, $template, $site ) : '';
-		$checkout = 0 === strpos( (string) $checkout, 'http://' ) || 0 === strpos( (string) $checkout, 'https://' ) ? $checkout : '';
+		$checkout = quotify_is_https_url( (string) $checkout ) ? $checkout : '';
 	}
 
 	wp_send_json_success(
@@ -546,9 +726,10 @@ function quotify_ajax_estimate(): void {
 			'capped'                  => $result['capped'],
 			'price'                   => $price,
 			'formatted_price'         => Quotify\Admin::price_label( $price ),
-			'checkout_url'            => $checkout,
+			'checkout_url'            => isset( $checkout ) ? $checkout : '',
+			'quote_label'             => $quote_label,
 			'fluentcart_url'          => $fluentcart_url,
-			'fluentcart_variation_id' => $instant_checkout && $tier ? ( $tier['variation_id'] ?? '' ) : '',
+			'fluentcart_variation_id' => $custom_quote || $instant_checkout ? ( ( $tier && ! empty( $tier['variation_id'] ) ) ? $tier['variation_id'] : '' ) : '',
 		)
 	);
 }

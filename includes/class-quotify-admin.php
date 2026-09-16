@@ -158,7 +158,11 @@ class Admin {
 	public static function get_price( int $count, array $tiers ): ?float {
 		$tier = self::match_tier( $count, $tiers );
 
-		return $tier ? (float) $tier['price'] : null;
+		if ( ! $tier || ! empty( $tier['custom_quote'] ) ) {
+			return null;
+		}
+
+		return (float) $tier['price'];
 	}
 
 	/**
@@ -267,6 +271,8 @@ class Admin {
 							<th><?php esc_html_e( 'Min pages', 'qtfy' ); ?></th>
 							<th><?php esc_html_e( 'Max pages (blank = open-ended)', 'qtfy' ); ?></th>
 							<th><?php esc_html_e( 'Price ($)', 'qtfy' ); ?></th>
+							<th><?php esc_html_e( 'Custom quote', 'qtfy' ); ?></th>
+							<th><?php esc_html_e( 'Button label (custom quote)', 'qtfy' ); ?></th>
 							<th><?php esc_html_e( 'Variation ID (FluentCart, optional)', 'qtfy' ); ?></th>
 							<th><?php esc_html_e( 'Checkout URL (optional)', 'qtfy' ); ?></th>
 							<th>&nbsp;</th>
@@ -383,6 +389,23 @@ class Admin {
 					step="0.01"
 					name="<?php echo esc_attr( sprintf( '%s[tiers][%d][price]', self::OPTION_NAME, $index ) ); ?>"
 					value="<?php echo esc_attr( $tier['price'] ); ?>"
+				>
+			</td>
+			<td>
+				<input
+					type="checkbox"
+					name="<?php echo esc_attr( sprintf( '%s[tiers][%d][custom_quote]', self::OPTION_NAME, $index ) ); ?>"
+					value="1"
+					<?php checked( ! empty( $tier['custom_quote'] ), true ); ?>
+				>
+			</td>
+			<td>
+				<input
+					type="text"
+					class="regular-text"
+					name="<?php echo esc_attr( sprintf( '%s[tiers][%d][button_label]', self::OPTION_NAME, $index ) ); ?>"
+					value="<?php echo esc_attr( $tier['button_label'] ?? '' ); ?>"
+					placeholder="<?php esc_attr_e( 'Get a Quote', 'qtfy' ); ?>"
 				>
 			</td>
 			<td>
@@ -571,8 +594,10 @@ class Admin {
 			$price        = isset( $raw['price'] ) ? trim( (string) $raw['price'] ) : '';
 			$variation_id = isset( $raw['variation_id'] ) ? trim( (string) $raw['variation_id'] ) : '';
 			$url          = isset( $raw['url'] ) ? trim( (string) $raw['url'] ) : '';
+			$custom_quote = isset( $raw['custom_quote'] ) && '1' === trim( (string) $raw['custom_quote'] );
+			$button_label = isset( $raw['button_label'] ) ? trim( (string) $raw['button_label'] ) : '';
 
-			if ( '' === $min && '' === $max && '' === $price && '' === $variation_id && '' === $url ) {
+			if ( '' === $min && '' === $max && '' === $price && '' === $variation_id && '' === $url && ! $custom_quote && '' === $button_label ) {
 				continue;
 			}
 
@@ -582,6 +607,8 @@ class Admin {
 				'price'        => '' !== $price ? self::normalize_price( (float) $price ) : 0.0,
 				'variation_id' => '' !== $variation_id ? absint( $variation_id ) : '',
 				'url'          => '' !== $url ? sanitize_text_field( $url ) : '',
+				'custom_quote' => $custom_quote,
+				'button_label' => '' !== $button_label ? sanitize_text_field( $button_label ) : '',
 			);
 		}
 
