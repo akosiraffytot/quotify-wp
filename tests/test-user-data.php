@@ -44,10 +44,30 @@ function date_i18n( $format, $timestamp = null ) {
 	return gmdate( (string) $format, (int) $timestamp );
 }
 
+$GLOBALS['__settings'] = array(
+	'tiers' => array(
+		array(
+			'min'          => 1,
+			'max'          => 5000,
+			'price'        => 120.0,
+			'variation_id' => '',
+			'url'          => '',
+		),
+		array(
+			'min'          => 5001,
+			'max'          => '',
+			'price'        => 450.0,
+			'variation_id' => '',
+			'url'          => '',
+		),
+	),
+);
+
 function get_option( $option, $default = false ) {
 	$values = array(
-		'date_format' => 'Y-m-d',
-		'time_format' => 'H:i',
+		'date_format'     => 'Y-m-d',
+		'time_format'     => 'H:i',
+		'quotify_settings' => $GLOBALS['__settings'],
 	);
 	return $values[ $option ] ?? $default;
 }
@@ -148,5 +168,36 @@ check( 'reference file exists', false !== $reference, true );
 foreach ( array( 'quotify', 'quotify_count', 'quotify_price', 'quotify_quote', 'quotify_saved_count', 'quotify_saved_scanned', 'quotify_saved_url' ) as $tag ) {
 	check( "reference documents [{$tag}]", false !== strpos( (string) $reference, "[{$tag}]" ), true );
 }
+
+// 10. Bricks tag_value: user 7 has a saved scan of 5001 pages.
+$GLOBALS['__current_user_id'] = 7;
+check( 'bricks count tag', Quotify\Bricks::tag_value( 'quotify_page_count' ), '5,001' );
+check( 'bricks price tag matches open tier', Quotify\Bricks::tag_value( 'quotify_price' ), '$450' );
+
+// A smaller scan matches the first tier.
+quotify_save_scan_meta( 7, 2500, 1234567890, 'https://example.test/' );
+check( 'bricks price matches lower tier', Quotify\Bricks::tag_value( 'quotify_price' ), '$120' );
+check( 'bricks count after re-scan', Quotify\Bricks::tag_value( 'quotify_page_count' ), '2,500' );
+
+// Logged-out visitors get an empty string.
+quotify_save_scan_meta( 7, 5001, 1234567890, 'https://example.test/' );
+$GLOBALS['__logged_in'] = false;
+check( 'bricks logged out count empty', Quotify\Bricks::tag_value( 'quotify_page_count' ), '' );
+check( 'bricks logged out price empty', Quotify\Bricks::tag_value( 'quotify_price' ), '' );
+$GLOBALS['__logged_in'] = true;
+
+// Never-scanned user gets an empty string.
+$GLOBALS['__current_user_id'] = 8;
+check( 'bricks no scan count empty', Quotify\Bricks::tag_value( 'quotify_page_count' ), '' );
+check( 'bricks no scan price empty', Quotify\Bricks::tag_value( 'quotify_price' ), '' );
+$GLOBALS['__current_user_id'] = 7;
+
+// Unknown tags pass through untouched in the single-tag and content paths.
+check( 'bricks unknown tag passthrough', Quotify\Bricks::render_tag( '{the_title}', null, 'text' ), '{the_title}' );
+check( 'bricks non-string passthrough', Quotify\Bricks::render_tag( array( 'x' => 1 ), null, 'text' ), array( 'x' => 1 ) );
+$content = '<p>{the_title}</p>';
+check( 'bricks content no tag untouched', Quotify\Bricks::render_content( $content, null, 'text' ), $content );
+$content = '<p>{quotify_page_count} pages — {quotify_price}</p>';
+check( 'bricks content replaces tags', Quotify\Bricks::render_content( $content, null, 'text' ), '<p>5,001 pages — $450</p>' );
 
 echo "ALL USER-DATA TESTS PASSED\n";

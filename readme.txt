@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -83,6 +83,9 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.5.0 =
+* Bricks Builder integration: two new dynamic data tags — `{quotify_page_count}` (the logged-in visitor's saved page count) and `{quotify_price}` (the price computed from your Tools > Quotify tiers). Pick them from the Dynamic Data dropdown under the **Quotify** group in any text element.
 
 = 1.4.0 =
 * Logged-in visitors' latest successful scan is saved to their user profile (page count, scan date/time and scanned URL) — shown as read-only fields on the profile page. New `[quotify_saved_count]`, `[quotify_saved_scanned]` and `[quotify_saved_url]` shortcodes render those saved values anywhere on the front end.

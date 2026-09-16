@@ -86,6 +86,16 @@
 	<h1>Quotify shortcode reference</h1>
 	<p class="lead">All shortcodes, their attributes, allowed values and what each does. Copy these into any page or post.</p>
 
+	<h2>Bricks Builder dynamic data</h2>
+	<p>With Bricks Builder active, Quotify adds two dynamic data tags under the <strong>Quotify</strong> group in the Dynamic Data dropdown. They render the <strong>current logged-in visitor's</strong> saved scan: empty (so you can hide elements with Bricks conditions) when the visitor is logged out or has never scanned.</p>
+	<ul>
+		<li><code>{quotify_page_count}</code> — the visitor's saved page count, formatted with thousands separators.</li>
+		<li><code>{quotify_price}</code> — the price for that count from your Tools &gt; Quotify tiers (or the contact-us fallback when no tier matches).</li>
+	</ul>
+	<p class="desc"><small>Example in a text element: &ldquo;Your site has {quotify_page_count} pages — <em>{quotify_price}</em>.&rdquo;</small></p>
+
+	<hr>
+
 	<h2>The estimate form</h2>
 	<div class="shortcode">[quotify]</div>
 	<p>Renders the full website estimator: a URL field, the Estimate button, a spinner and inline result fields. Results fill in live over AJAX — no page reload.</p>
