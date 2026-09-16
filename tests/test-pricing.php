@@ -7,7 +7,7 @@
 
 define( 'ABSPATH', 'C:/tmp/' );
 define( 'QUOTIFY_URL', 'http://unit.test/wp-content/plugins/quotify/' );
-define( 'QUOTIFY_VERSION', '1.6.0' );
+define( 'QUOTIFY_VERSION', '1.6.1' );
 
 function number_format_i18n( $number, $decimals = 0 ) {
 	return number_format( $number, $decimals );
@@ -140,5 +140,23 @@ check( 'custom quote matched', Admin::match_tier( 5000, $custom_tiers )['custom_
 check( 'custom quote label kept', Admin::match_tier( 5000, $custom_tiers )['button_label'], 'Email Us' );
 check( 'custom quote no price', Admin::get_price( 5000, $custom_tiers ), null );
 check( 'fixed tier still priced', Admin::get_price( 10, $custom_tiers ), 120.0 );
+
+// Custom-quote URL building: {site} + {page_count} replaced, {total_price}
+// left literal (custom-quote tiers have no fixed price).
+check(
+	'contact url site + count',
+	Admin::build_contact_url( 60, 'https://contact.com/?s={site}&p={page_count}', 'https://bikes.example' ),
+	'https://contact.com/?s=https://bikes.example&p=60'
+);
+check(
+	'contact url leaves price token',
+	Admin::build_contact_url( 60, 'mailto:quote@site.test?subject={total_price}', 'https://bikes.example' ),
+	'mailto:quote@site.test?subject={total_price}'
+);
+check(
+	'contact url no tokens',
+	Admin::build_contact_url( 60, 'mailto:sales@bikes.example', 'https://bikes.example' ),
+	'mailto:sales@bikes.example'
+);
 
 echo "ALL PRICING TESTS PASSED\n";

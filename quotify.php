@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.6.0
+ * Version:     1.6.1
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.6.0' );
+define( 'QUOTIFY_VERSION', '1.6.1' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -319,11 +319,11 @@ function quotify_fluentcart_checkout_shortcode( $atts ): string {
 	$tier_url = (string) ( $tier['url'] ?? '' );
 
 	if ( $custom_quote ) {
-		if ( '' === $tier_url || ! quotify_is_loose_url( $tier_url ) ) {
+		$href = Quotify\Admin::build_contact_url( $saved['count'], $tier_url, home_url() );
+
+		if ( ! quotify_is_loose_url( $href ) ) {
 			return '';
 		}
-
-		$href = $tier_url;
 	} else {
 		$price = Quotify\Admin::get_price( $saved['count'], $settings['tiers'] );
 
@@ -695,8 +695,9 @@ function quotify_ajax_estimate(): void {
 				),
 				home_url()
 			);
-		} elseif ( ! empty( $tier['url'] ) && quotify_is_loose_url( $tier['url'] ) ) {
-			$checkout = $tier['url'];
+		} elseif ( ! empty( $tier['url'] ) ) {
+			$checkout = Quotify\Admin::build_contact_url( $result['count'], $tier['url'], home_url() );
+			$checkout = quotify_is_loose_url( $checkout ) ? $checkout : '';
 		}
 	} elseif ( $instant_checkout ) {
 		// Instant checkout drives the button from the tier's FluentCart

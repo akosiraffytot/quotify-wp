@@ -253,7 +253,7 @@ $GLOBALS['__settings'] = array(
 			'max'          => '',
 			'price'        => 0.0,
 			'variation_id' => '',
-			'url'          => 'mailto:quote@site.test',
+			'url'          => 'mailto:quote@site.test?subject=Quote&amp;pages={page_count}',
 			'custom_quote' => true,
 			'button_label' => 'Email Us',
 		),
@@ -264,7 +264,7 @@ check( 'fc no custom-quote count empty', $html, '' );
 
 quotify_save_scan_meta( 7, 5001, 1234567890, 'https://example.test/' );
 $html = quotify_fluentcart_checkout_shortcode( array() );
-check( 'fc custom-quote mailto link', $html, '<a class="quotify-quote-link" href="mailto:quote@site.test" rel="noopener">Email Us</a>' );
+check( 'fc custom-quote mailto with tokens', $html, '<a class="quotify-quote-link" href="mailto:quote@site.test?subject=Quote&amp;pages=5001" rel="noopener">Email Us</a>' );
 
 // Shortcode label attr falls back when the tier label is empty.
 $GLOBALS['__settings'] = array(

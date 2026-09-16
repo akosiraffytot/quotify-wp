@@ -204,6 +204,26 @@ class Admin {
 	}
 
 	/**
+	 * Build a custom-quote URL by substituting the price-less tokens.
+	 *
+	 * Custom-quote tiers have no fixed price, so {total_price} is left
+	 * literal; {page_count} and {site} are still substituted. Tokenless
+	 * templates are returned verbatim.
+	 *
+	 * @param int    $count    Page count.
+	 * @param string $template Checkout URL template.
+	 * @param string $site     Normalized website root (scheme://host[:port]).
+	 * @return string
+	 */
+	public static function build_contact_url( int $count, string $template, string $site ): string {
+		return str_replace(
+			array( self::TOKEN_PAGES, self::TOKEN_SITE ),
+			array( (string) $count, $site ),
+			$template
+		);
+	}
+
+	/**
 	 * Render a price for use in a URL query: 2dp with trailing zeros trimmed.
 	 *
 	 * @param float $price Price.

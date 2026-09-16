@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.6.0
+Stable tag: 1.6.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -49,7 +49,7 @@ Display the right checkout button for the logged-in user's saved scan anywhere (
 
 `[quotify_fluentcart_checkout label="Get my quote"]`
 
-It matches the saved page count to a tier and renders the FluentCart instant-modal button (tier has a Variation ID) or a link to the tier's Checkout URL; for a **Custom quote** tier that URL is used verbatim, so `mailto:`, `tel:` and relative links work.
+It matches the saved page count to a tier and renders the FluentCart instant-modal button (tier has a Variation ID) or a link to the tier's Checkout URL; for a **Custom quote** tier that URL is used verbatim, so `mailto:`, `tel:` and relative links work — and the `{site}` / `{page_count}` tokens are substituted there too (`{total_price}` stays literal).
 
 Tiers can be marked **Custom quote** in Tools > Quotify: no fixed price is shown (visitors see a contact-us message instead of a dollar amount), and each such tier gets its own **Button label**.
 
@@ -91,6 +91,9 @@ That tier is marked **Custom quote** in Tools > Quotify (or the count falls outs
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.6.1 =
+* Custom-quote Checkout URLs now support the `{site}` and `{page_count}` tokens (the price-less `{total_price}` stays literal). Applies to the scanner form and `[quotify_fluentcart_checkout]`.
 
 = 1.6.0 =
 * New per-tier **Custom quote** option in Tools > Quotify: a tier without a fixed price. Visitors see the custom-quote message instead of a price, and the button targets the tier's own Variation ID (FluentCart instant modal) or Checkout URL (used verbatim — supports `mailto:`/`tel:`/relative links) with a per-tier **Button label**.
