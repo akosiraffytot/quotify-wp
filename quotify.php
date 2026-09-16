@@ -3,7 +3,7 @@
  * Plugin Name: Quotify
  * Plugin URI:  https://github.com/akosiraffytot/quotify-wp
  * Description: Counts pages from any website's XML sitemap and returns a tiered price with a checkout link.
- * Version:     1.3.10
+ * Version:     1.4.0
  * Author:      Rafael Mendoza
  * Author URI:  https://akosiraffytot.dev/
  * License:     GPL v2 or later
@@ -19,7 +19,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'QUOTIFY_VERSION', '1.3.10' );
+define( 'QUOTIFY_VERSION', '1.4.0' );
 define( 'QUOTIFY_PATH', plugin_dir_path( __FILE__ ) );
 define( 'QUOTIFY_URL', plugin_dir_url( __FILE__ ) );
 define( 'QUOTIFY_FILE', __FILE__ );
@@ -45,6 +45,9 @@ function quotify_boot(): void {
 	add_shortcode( 'quotify_count', 'quotify_count_shortcode' );
 	add_shortcode( 'quotify_price', 'quotify_price_shortcode' );
 	add_shortcode( 'quotify_quote', 'quotify_quote_shortcode' );
+	add_shortcode( 'quotify_saved_count', 'quotify_saved_count_shortcode' );
+	add_shortcode( 'quotify_saved_scanned', 'quotify_saved_scanned_shortcode' );
+	add_shortcode( 'quotify_saved_url', 'quotify_saved_url_shortcode' );
 	add_action( 'wp_footer', 'quotify_enqueue_frontend_assets' );
 	add_action( 'wp_ajax_quotify_estimate', 'quotify_ajax_estimate' );
 	add_action( 'wp_ajax_nopriv_quotify_estimate', 'quotify_ajax_estimate' );
@@ -319,6 +322,108 @@ function quotify_quote_shortcode( $atts ): string {
 }
 
 /**
+ * Save the latest successful scan to a user's profile meta.
+ *
+ * Latest-scan-only: each successful scan overwrites the previous record.
+ *
+ * @param int    $user_id User ID.
+ * @param int    $count   Page count (already capped at 5,001).
+ * @param int    $time    Unix timestamp of the scan.
+ * @param string $url     Scanned website URL.
+ * @return void
+ */
+function quotify_save_scan_meta( int $user_id, int $count, int $time, string $url ): void {
+	update_user_meta( $user_id, Quotify\Admin::META_COUNT, $count );
+	update_user_meta( $user_id, Quotify\Admin::META_SCANNED_AT, $time );
+	update_user_meta( $user_id, Quotify\Admin::META_URL, $url );
+}
+
+/**
+ * Latest saved scan for a user, or an empty array when never scanned.
+ *
+ * @param int $user_id User ID.
+ * @return array{count:int,scanned_at:int,url:string}
+ */
+function quotify_get_saved_scan( int $user_id ): array {
+	return array(
+		'count'      => (int) get_user_meta( $user_id, Quotify\Admin::META_COUNT, true ),
+		'scanned_at' => (int) get_user_meta( $user_id, Quotify\Admin::META_SCANNED_AT, true ),
+		'url'        => (string) get_user_meta( $user_id, Quotify\Admin::META_URL, true ),
+	);
+}
+
+/**
+ * Shared renderer for the saved-scan display shortcodes.
+ *
+ * Server-rendered from the current logged-in user's profile meta; renders
+ * nothing (or the placeholder) for logged-out visitors or users who have
+ * never run a scan. Deliberately does not set the asset enqueue flag: these
+ * render on the server and need no frontend JS.
+ *
+ * @param array|string $atts  Shortcode attributes (placeholder).
+ * @param string       $field Field slug: count, scanned or url.
+ * @return string
+ */
+function quotify_saved_scan_shortcode( $atts, string $field ): string {
+	$atts  = shortcode_atts(
+		array( 'placeholder' => '' ),
+		$atts,
+		'quotify_saved_' . $field
+	);
+	$value = '';
+
+	if ( is_user_logged_in() ) {
+		$saved = quotify_get_saved_scan( get_current_user_id() );
+
+		if ( 'count' === $field ) {
+			$value = $saved['count'] > 0 ? number_format_i18n( $saved['count'], 0 ) : '';
+		} elseif ( 'scanned' === $field ) {
+			if ( $saved['scanned_at'] > 0 ) {
+				$value = date_i18n( sprintf( '%s %s', get_option( 'date_format' ), get_option( 'time_format' ) ), $saved['scanned_at'] );
+			}
+		} elseif ( 'url' === $field ) {
+			$value = $saved['url'];
+		}
+	}
+
+	if ( '' === $value ) {
+		return esc_html( $atts['placeholder'] );
+	}
+
+	return esc_html( $value );
+}
+
+/**
+ * [quotify_saved_count] shortcode: current user's latest page count.
+ *
+ * @param array|string $atts Shortcode attributes (placeholder).
+ * @return string
+ */
+function quotify_saved_count_shortcode( $atts ): string {
+	return quotify_saved_scan_shortcode( $atts, 'count' );
+}
+
+/**
+ * [quotify_saved_scanned] shortcode: current user's last scan date/time.
+ *
+ * @param array|string $atts Shortcode attributes (placeholder).
+ * @return string
+ */
+function quotify_saved_scanned_shortcode( $atts ): string {
+	return quotify_saved_scan_shortcode( $atts, 'scanned' );
+}
+
+/**
+ * [quotify_saved_url] shortcode: current user's last scanned website URL.
+ *
+ * @param array|string $atts Shortcode attributes (placeholder).
+ * @return string
+ */
+function quotify_saved_url_shortcode( $atts ): string {
+	return quotify_saved_scan_shortcode( $atts, 'url' );
+}
+
+/**
  * Enqueue frontend assets when the shortcode was rendered on this page.
  *
  * Skipped when force_load_assets already embedded the tags inline at
@@ -404,6 +509,11 @@ function quotify_ajax_estimate(): void {
 	$settings = Quotify\Admin::get_settings();
 	$tier     = Quotify\Admin::match_tier( $result['count'], $settings['tiers'] );
 	$price    = $tier ? (float) $tier['price'] : null;
+
+	// Save the latest successful scan to the logged-in user's profile.
+	if ( is_user_logged_in() ) {
+		quotify_save_scan_meta( get_current_user_id(), $result['count'], time(), $url );
+	}
 
 	// Instant checkout drives the button from the tier's FluentCart variation
 	// ID; the Checkout URL template is ignored entirely for this flow.

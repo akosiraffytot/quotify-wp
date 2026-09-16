@@ -24,6 +24,11 @@ class Admin {
 	const TOKEN_PRICE = '{total_price}';
 	const TOKEN_SITE  = '{site}';
 
+	// User-meta keys for the latest successful scan per user.
+	const META_COUNT      = 'quotify_page_count';
+	const META_SCANNED_AT = 'quotify_scanned_at';
+	const META_URL        = 'quotify_scanned_url';
+
 	/**
 	 * Hook the admin into WordPress.
 	 *
@@ -33,6 +38,8 @@ class Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu_page' ) );
 		add_action( 'admin_init', array( __CLASS__, 'register_settings' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_admin_assets' ) );
+		add_action( 'show_user_profile', array( __CLASS__, 'render_profile_fields' ) );
+		add_action( 'edit_user_profile', array( __CLASS__, 'render_profile_fields' ) );
 	}
 
 	/**
@@ -86,6 +93,10 @@ class Admin {
 				'add'    => __( 'Add tier', 'qtfy' ),
 			)
 		);
+
+		// ThickBox powers the "Shortcode reference" lightbox (doc/doc.html).
+		wp_enqueue_script( 'thickbox' );
+		wp_enqueue_style( 'thickbox' );
 	}
 
 	/**
@@ -210,14 +221,28 @@ class Admin {
 			return;
 		}
 
-		$settings     = self::get_settings();
-		$tiers        = $settings['tiers'];
-		$checkout_url = $settings['checkout_url'];
-		$limits       = $settings['limits'];
-		$next_index   = empty( $tiers ) ? 1 : count( $tiers );
+		$settings      = self::get_settings();
+		$tiers         = $settings['tiers'];
+		$checkout_url  = $settings['checkout_url'];
+		$limits        = $settings['limits'];
+		$reference_url = add_query_arg(
+			array(
+				'TB_iframe' => 'true',
+				'width'     => 900,
+				'height'    => 750,
+			),
+			QUOTIFY_URL . 'doc/doc.html'
+		);
+		$next_index    = empty( $tiers ) ? 1 : count( $tiers );
 		?>
 		<div class="wrap">
 			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+
+			<p>
+				<a class="button thickbox" href="<?php echo esc_url( $reference_url ); ?>">
+					<?php esc_html_e( 'Shortcode reference', 'qtfy' ); ?>
+				</a>
+			</p>
 
 			<?php settings_errors( self::OPTION_NAME ); ?>
 
@@ -568,5 +593,40 @@ class Admin {
 		);
 
 		return $normalized;
+	}
+
+	/**
+	 * Read-only "Latest Quotify scan" section on the user profile page.
+	 *
+	 * Values are set automatically by successful scans only; users never
+	 * write these directly, so no save handler is registered.
+	 *
+	 * @param \WP_User $user User being viewed.
+	 * @return void
+	 */
+	public static function render_profile_fields( \WP_User $user ): void {
+		$user_id = (int) $user->ID;
+		$count   = (int) get_user_meta( $user_id, self::META_COUNT, true );
+		$time    = (int) get_user_meta( $user_id, self::META_SCANNED_AT, true );
+		$url     = (string) get_user_meta( $user_id, self::META_URL, true );
+		$dash    = '—';
+
+		$scanned = $time > 0
+			? date_i18n( sprintf( '%s %s', get_option( 'date_format' ), get_option( 'time_format' ) ), $time )
+			: $dash;
+
+		echo '<h2>' . esc_html__( 'Latest Quotify scan', 'qtfy' ) . '</h2>';
+		echo '<table class="form-table"><tbody>';
+
+		echo '<tr><th scope="row"><label>' . esc_html__( 'Page count', 'qtfy' ) . '</label></th>'
+			. '<td>' . ( $count > 0 ? esc_html( number_format_i18n( $count, 0 ) ) : esc_html( $dash ) ) . '</td></tr>';
+
+		echo '<tr><th scope="row"><label>' . esc_html__( 'Last scanned', 'qtfy' ) . '</label></th>'
+			. '<td><span class="description">' . esc_html( $scanned ) . '</span></td></tr>';
+
+		echo '<tr><th scope="row"><label>' . esc_html__( 'Scanned website', 'qtfy' ) . '</label></th>'
+			. '<td>' . ( '' !== $url ? '<a href="' . esc_url( $url ) . '" rel="nofollow noopener">' . esc_html( $url ) . '</a>' : esc_html( $dash ) ) . '</td></tr>';
+
+		echo '</tbody></table>';
 	}
 }

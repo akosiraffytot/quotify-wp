@@ -4,7 +4,7 @@ Tags: sitemap, page count, pricing, quote, estimate
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.3.10
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -45,13 +45,25 @@ Place any result separately anywhere on the page — for example a "You have X p
 
 Each accepts a `placeholder` attribute (e.g. `[quotify_count placeholder="--"]`). Results fill in live when the visitor runs an estimate; other spots on the page fill with the same values. When `instant_checkout="yes"` is active on `[quotify]`, a `[quotify_quote]` field on the same page renders the FluentCart modal-checkout button too — so you can hide the inline quote (`show_quote="0"`) and place only the button elsewhere.
 
+### Logged-in visitors: saved scan data
+
+When a logged-in visitor runs a successful estimate, Quotify saves the page count, the scan date/time and the scanned URL to their profile (latest scan only — each new success overwrites the previous). Read-only fields appear under **Latest Quotify scan** on the WordPress profile page.
+
+Display the saved values anywhere with these shortcodes (server-rendered, no AJAX; empty when logged out or never scanned):
+
+`[quotify_saved_count]`
+`[quotify_saved_scanned]`
+`[quotify_saved_url]`
+
+Each accepts a `placeholder` attribute for the empty case, e.g. `[quotify_saved_count placeholder="--"]`.
+
 Sites with no discoverable sitemap, or with more than 5,000 pages, fall back to a clear message or a "Contact us" label instead of a price — letting you sell a custom quote.
 
 == Installation ==
 
 1. Upload the `quotify` folder to `/wp-content/plugins/`, or install the `quotify.zip` you download from GitHub.
 2. Activate the plugin through the Plugins screen.
-3. Go to **Tools > Quotify**, enter your pricing tiers and checkout URL template, and save.
+3. Go to **Tools > Quotify**, enter your pricing tiers and checkout URL template, and save. The **Shortcode reference** button there lists every shortcode, attribute and example.
 4. Add the `[quotify]` shortcode (and the field shortcodes above) to the pages where you want the tool.
 
 The plugin self-updates: each new release is offered in the Plugins screen and installs in one click.
@@ -71,6 +83,10 @@ Page counts above your last tier are matched to the open-ended bracket. When tha
 No. The tool is fully public and runs entirely over AJAX, with security checks built in.
 
 == Changelog ==
+
+= 1.4.0 =
+* Logged-in visitors' latest successful scan is saved to their user profile (page count, scan date/time and scanned URL) — shown as read-only fields on the profile page. New `[quotify_saved_count]`, `[quotify_saved_scanned]` and `[quotify_saved_url]` shortcodes render those saved values anywhere on the front end.
+* Shortcode reference: a **Shortcode reference** button on the Tools > Quotify page opens a built-in reference (every shortcode, attribute, allowed value and example) in a lightbox.
 
 = 1.3.10 =
 * New `quotify:scanned` and `quotify:error` browser events: after a successful estimate or a failed one, the plugin dispatches a custom DOM event on `document` carrying the result (`page_count`, `price`, `checkout_url`, etc.) or the error code/message — hook into it with `addEventListener` to reveal elements, log, animate or chain actions.

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Quotify shortcode reference</title>
+	<style>
+		:root {
+			--border: #dcdcde;
+			--heading: #1d2327;
+			--muted: #646970;
+			--code-bg: #f6f7f7;
+			--accent: #2271b1;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 24px;
+			font: 13px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+			color: var(--heading);
+		}
+		h1 { font-size: 20px; margin: 0 0 4px; }
+		p { margin: 6px 0; }
+		.lead { color: var(--muted); margin-bottom: 20px; }
+		h2 {
+			font-size: 15px;
+			margin: 28px 0 6px;
+			padding-top: 16px;
+			border-top: 1px solid var(--border);
+		}
+		.shortcode {
+			background: var(--code-bg);
+			border: 1px solid var(--border);
+			border-radius: 4px;
+			padding: 8px 10px;
+			font-family: Consolas, Monaco, monospace;
+			font-size: 13px;
+			margin: 8px 0;
+		}
+		.attr-row {
+			display: grid;
+			grid-template-columns: 130px 90px 1fr 2fr;
+			gap: 8px;
+			padding: 6px 0;
+			border-bottom: 1px solid var(--border);
+			align-items: start;
+		}
+		.attr-row code, .attr-row strong { font-size: 12px; }
+		.attr-row strong { font-weight: 600; }
+		.attr-head {
+			display: grid;
+			grid-template-columns: 130px 90px 1fr 2fr;
+			gap: 8px;
+			padding: 4px 0;
+			border-bottom: 1px solid var(--border);
+			font-weight: 600;
+			color: var(--muted);
+			font-size: 11px;
+			text-transform: uppercase;
+			letter-spacing: .04em;
+		}
+		.desc { color: var(--heading); }
+		.desc small { color: var(--muted); display: block; }
+		ul { margin: 6px 0; padding-left: 20px; }
+		li { margin: 3px 0; }
+		code {
+			background: var(--code-bg);
+			border: 1px solid var(--border);
+			border-radius: 3px;
+			padding: 1px 5px;
+			font-family: Consolas, Monaco, monospace;
+			font-size: 12px;
+			white-space: nowrap;
+		}
+		code.full { white-space: normal; }
+		.note {
+			border-left: 3px solid var(--accent);
+			background: #f0f6fc;
+			padding: 8px 12px;
+			margin: 10px 0;
+		}
+		hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+	</style>
+</head>
+<body>
+	<h1>Quotify shortcode reference</h1>
+	<p class="lead">All shortcodes, their attributes, allowed values and what each does. Copy these into any page or post.</p>
+
+	<h2>The estimate form</h2>
+	<div class="shortcode">[quotify]</div>
+	<p>Renders the full website estimator: a URL field, the Estimate button, a spinner and inline result fields. Results fill in live over AJAX — no page reload.</p>
+	<div class="attr-head"><span>Attribute</span><span>Default</span><span>Allowed</span><span>What it does</span></div>
+
+	<div class="attr-row"><strong>button</strong><code>Estimate</code><code>string</code><span class="desc">Text on the submit button.</span></div>
+	<div class="attr-row"><strong>quote_label</strong><code>Get a Quote</code><code>string</code><span class="desc">Text on the checkout link/button shown after the estimate.</span></div>
+	<div class="attr-row"><strong>show_pages</strong><code>1</code><code>0 / 1</code><span class="desc">Show the page count inline after the estimate.</span></div>
+	<div class="attr-row"><strong>show_price</strong><code>1</code><code>0 / 1</code><span class="desc">Show the price inline after the estimate.</span></div>
+	<div class="attr-row"><strong>show_quote</strong><code>1</code><code>0 / 1</code><span class="desc">Show the quote/checkout link inline after the estimate.</span></div>
+	<div class="attr-row"><strong>mode</strong><code>all</code><code>all, user</code><span class="desc"><code>all</code> — visitors type any website. <code>user</code> — prefill (read-only) from the logged-in visitor's profile website URL; shows a prompt when none is set.</span></div>
+	<div class="attr-row"><strong>instant_checkout</strong><code>(off)</code><code>yes, 1, true, on</code><span class="desc">Turn the quote button into FluentCart's instant modal checkout. Requires FluentCart active and a Variation ID set on the matched pricing tier; the tier's Checkout URL is ignored while on. <small>Leave off / omit to use checkout URLs.</small></span></div>
+	<div class="attr-row"><strong>force_load_assets</strong><code>(off)</code><code>yes, 1, true, on</code><span class="desc">Embed the frontend CSS/JS directly with the form for placements that render after the normal asset queue — builder popups, step wizards, late-printed content. <small>Off: assets load once automatically when a Quotify shortcode renders on the page.</small></span></div>
+
+	<p>Example:</p>
+	<div class="shortcode">[quotify button="Get my price" quote_label="Buy now" mode="user"]</div>
+	<p class="desc"><small>Estimate button says &ldquo;Get my price&rdquo;, checkout label &ldquo;Buy now&rdquo;, and the field is prefilled with the logged-in visitor's profile URL.</small></p>
+
+	<h2>Place results anywhere</h2>
+	<p>These fill with the values from the last estimate run on the page. If the inline fields are hidden on <code>[quotify]</code> (<code>show_pages="0"</code> etc.), drop these in separate spots to show the values there instead.</p>
+	<ul>
+		<li><code>[quotify_count]</code> — the counted page number</li>
+		<li><code>[quotify_price]</code> — the matched price</li>
+		<li><code>[quotify_quote]</code> — the &ldquo;Get a Quote&rdquo; link/button</li>
+	</ul>
+	<div class="attr-head"><span>Attribute</span><span>Default</span><span>Allowed</span><span>What it does</span></div>
+	<div class="attr-row"><strong>placeholder</strong><code>(empty)</code><code>string</code><span class="desc">Text shown before the first estimate on the page.</span></div>
+	<div class="attr-row"><strong>label</strong><code>Get a Quote</code><code>string</code><span class="desc">Only on <code>[quotify_quote]</code>. Text of the quote link/button.</span></div>
+	<p>Example:</p>
+	<div class="shortcode">[quotify_count placeholder="--"]
+[quotify_quote label="Buy now"]</div>
+
+	<div class="note"><strong>Tip:</strong> when <code>instant_checkout="yes"</code> is on <code>[quotify]</code>, a <code>[quotify_quote]</code> on the same page also renders the FluentCart modal button.</div>
+
+	<h2>Logged-in users' saved scan</h2>
+	<p>When a <strong>logged-in</strong> visitor runs a successful estimate, Quotify saves the page count, scan date/time and scanned URL to their profile (latest scan only). These shortcodes render the saved values server-side — no form or AJAX needed. They output an empty string (or the <code>placeholder</code>) when the visitor is logged out or has never scanned.</p>
+	<ul>
+		<li><code>[quotify_saved_count]</code> — the visitor's last saved page count</li>
+		<li><code>[quotify_saved_scanned]</code> — the date + time of the last scan (site formats)</li>
+		<li><code>[quotify_saved_url]</code> — the last scanned website URL</li>
+	</ul>
+	<div class="attr-head"><span>Attribute</span><span>Default</span><span>Allowed</span><span>What it does</span></div>
+	<div class="attr-row"><strong>placeholder</strong><code>(empty)</code><code>string</code><span class="desc">Fallback text when no saved scan is available.</span></div>
+	<p>Example:</p>
+	<div class="shortcode">Your latest scan: [quotify_saved_count placeholder="—"] pages, checked [quotify_saved_scanned placeholder="never"].</div>
+</body>
+</html>

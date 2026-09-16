@@ -10,3 +10,7 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 delete_option( 'quotify_settings' );
+
+delete_metadata( 'user', 0, 'quotify_page_count', '', true );
+delete_metadata( 'user', 0, 'quotify_scanned_at', '', true );
+delete_metadata( 'user', 0, 'quotify_scanned_url', '', true );
